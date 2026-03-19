@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, use } from 'react'
 import { Calendar, Users, Clock, MapPin, Star, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { mockCompanies, mockServices, mockEmployees } from '@/lib/mock-data'
 
-export default function ReservasPage({ params }: { params: { slug: string } }) {
+export default function ReservasPage({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {
+  const params = use(paramsPromise)
   const company = mockCompanies.find(c => c.slug === params.slug)
   const [step, setStep] = useState<'servicio' | 'empleado' | 'fecha' | 'datos' | 'confirmacion'>('servicio')
   const [selectedService, setSelectedService] = useState<string>('')

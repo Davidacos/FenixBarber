@@ -1,121 +1,453 @@
-'use client'
+"use client";
 
-import { BarChart, Users, Calendar, TrendingUp, DollarSign, AlertCircle } from 'lucide-react'
-import Sidebar from '@/components/sidebar'
-import Topbar from '@/components/topbar'
-import StatCard from '@/components/stat-card'
-import PageHeader from '@/components/page-header'
-import DataTable from '@/components/data-table'
-import StatusBadge from '@/components/status-badge'
-import { mockAppointments, mockServices } from '@/lib/mock-data'
-import { Button } from '@/components/ui/button'
+import {
+  Calendar,
+  DollarSign,
+  Users,
+  TrendingUp,
+  ArrowRight,
+  Clock,
+  CheckCircle2,
+  FileText,
+  Plus,
+  Scissors,
+  MoreHorizontal,
+} from "lucide-react";
+import Sidebar from "@/components/sidebar";
+import Topbar from "@/components/topbar";
+import StatCard from "@/components/stat-card";
+import PageHeader from "@/components/page-header";
+import DataTable, { type Column } from "@/components/data-table";
+import StatusBadge from "@/components/status-badge";
+import { mockAppointments, mockServices } from "@/lib/mock-data";
+import Link from "next/link";
 
+// ── Types ───────────────────────────────────────────────
+type AppointmentRow = {
+  client: string;
+  service: string;
+  time: string;
+  status: "pendiente" | "confirmada" | "completada" | "cancelada";
+  employee: string;
+  amount: string;
+};
+
+// ── Static data ─────────────────────────────────────────
+const weekData = [
+  { day: "Lun", value: 320 },
+  { day: "Mar", value: 480 },
+  { day: "Mié", value: 410 },
+  { day: "Jue", value: 560 },
+  { day: "Vie", value: 620 },
+  { day: "Sáb", value: 890 },
+  { day: "Dom", value: 210 },
+];
+const maxWeek = Math.max(...weekData.map((d) => d.value));
+
+const topServices = [
+  { name: "Corte + Barba", count: 34, pct: 92 },
+  { name: "Corte clásico", count: 28, pct: 76 },
+  { name: "Diseño de barba", count: 19, pct: 51 },
+  { name: "Afeitado completo", count: 12, pct: 32 },
+];
+
+const quickActions = [
+  {
+    label: "Nueva cita",
+    icon: Plus,
+    href: "/appointments/new",
+    iconClass: "text-blue-600",
+    bg: "bg-blue-50",
+  },
+  {
+    label: "Ver agenda",
+    icon: Calendar,
+    href: "/appointments",
+    iconClass: "text-emerald-600",
+    bg: "bg-emerald-50",
+  },
+  {
+    label: "Nuevo servicio",
+    icon: Scissors,
+    href: "/services/new",
+    iconClass: "text-amber-600",
+    bg: "bg-amber-50",
+  },
+  {
+    label: "Generar reporte",
+    icon: FileText,
+    href: "/finance/reports",
+    iconClass: "text-violet-600",
+    bg: "bg-violet-50",
+  },
+] as const;
+
+const recentActivity = [
+  {
+    icon: CheckCircle2,
+    iconClass: "text-emerald-600",
+    bg: "bg-emerald-50",
+    title: "Cita completada",
+    sub: "Carlos M. — Corte + Barba",
+    time: "hace 5 min",
+  },
+  {
+    icon: Calendar,
+    iconClass: "text-blue-600",
+    bg: "bg-blue-50",
+    title: "Nueva cita agendada",
+    sub: "Pedro L. — Diseño de barba",
+    time: "hace 18 min",
+  },
+  {
+    icon: DollarSign,
+    iconClass: "text-amber-600",
+    bg: "bg-amber-50",
+    title: "Pago recibido",
+    sub: "$45,000 — Luis R.",
+    time: "hace 32 min",
+  },
+  {
+    icon: Users,
+    iconClass: "text-violet-600",
+    bg: "bg-violet-50",
+    title: "Empleado llegó",
+    sub: "Juan Barbero — On time",
+    time: "hace 1h",
+  },
+];
+
+// ── Column definition outside component so the type is stable ──
+const appointmentColumns: Column<AppointmentRow>[] = [
+  {
+    key: "client",
+    label: "Cliente",
+    render: (_item, value) => (
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 text-xs font-extrabold flex-shrink-0">
+          {String(value).slice(-1)}
+        </div>
+        <span className="font-semibold text-slate-900 text-sm">
+          {String(value)}
+        </span>
+      </div>
+    ),
+  },
+  { key: "service", label: "Servicio" },
+  { key: "time", label: "Hora", align: "center" },
+  { key: "employee", label: "Empleado" },
+  {
+    key: "status",
+    label: "Estado",
+    sortable: false,
+    align: "center",
+    render: (_item, value) => (
+      <StatusBadge status={value as AppointmentRow["status"]} />
+    ),
+  },
+  {
+    key: "amount",
+    label: "Monto",
+    align: "right",
+    render: (_item, value) => (
+      <span className="font-extrabold text-slate-900 text-sm">
+        {String(value)}
+      </span>
+    ),
+  },
+];
+
+// ── Component ────────────────────────────────────────────
 export default function DashboardPage() {
-  const todayAppointments = mockAppointments.filter(a => a.date.toDateString() === new Date().toDateString())
+  const todayAppointments = mockAppointments.filter(
+    (a) => a.date.toDateString() === new Date().toDateString(),
+  );
+
   const todayRevenue = mockAppointments
-    .filter(a => a.status === 'completada')
+    .filter((a) => a.status === "completada")
     .reduce((sum, a) => {
-      const service = mockServices.find(s => s.id === a.serviceId)
-      return sum + (service?.price || 0)
-    }, 0)
+      const svc = mockServices.find((s) => s.id === a.serviceId);
+      return sum + (svc?.price ?? 0);
+    }, 0);
+
+  const tableData: AppointmentRow[] = mockAppointments.slice(0, 10).map((a) => {
+    const svc = mockServices.find((s) => s.id === a.serviceId);
+    return {
+      client: `Cliente ${a.id}`,
+      service: svc?.name ?? "N/A",
+      time: a.date.toLocaleTimeString("es-ES", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      status: a.status as AppointmentRow["status"],
+      employee: `Empleado ${a.employeeId}`,
+      amount: `$${(svc?.price ?? 0).toLocaleString("es-CO")}`,
+    };
+  });
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-screen bg-slate-50">
       <Sidebar />
       <Topbar />
 
-      <main className="pt-24 pb-12 px-4 md:px-8 md:ml-64">
+      <main className="md:ml-64 pt-20 pb-12 px-5 md:px-7">
+        {/* ── Header ── */}
         <PageHeader
           title="Dashboard"
           description="Resumen de tu negocio hoy"
+          breadcrumb="Dashboard"
           actions={
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
-              Generar reporte
-            </Button>
+            <>
+              <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
+                <FileText className="w-3.5 h-3.5" /> Exportar
+              </button>
+              <Link href="/appointments/new">
+                <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-200 transition-all hover:-translate-y-px">
+                  <Plus className="w-3.5 h-3.5" /> Nueva cita
+                </button>
+              </Link>
+            </>
           }
         />
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        {/* ── KPI Grid ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
           <StatCard
             label="Citas hoy"
             value={todayAppointments.length}
-            icon={<Calendar className="w-6 h-6 text-indigo-600" />}
+            icon={<Calendar className="w-5 h-5 text-blue-600" />}
+            iconClassName="bg-blue-50"
             trend="up"
             trendPercent={12}
           />
           <StatCard
             label="Ingresos hoy"
-            value={`$${todayRevenue.toFixed(2)}`}
-            icon={<DollarSign className="w-6 h-6 text-green-600" />}
+            value={`$${todayRevenue.toLocaleString("es-CO")}`}
+            icon={<DollarSign className="w-5 h-5 text-emerald-600" />}
+            iconClassName="bg-emerald-50 border-emerald-100"
             trend="up"
             trendPercent={8}
           />
           <StatCard
             label="Empleados activos"
-            value="3"
-            icon={<Users className="w-6 h-6 text-blue-600" />}
-            subtext="Listos para trabajar"
+            value="4"
+            icon={<Users className="w-5 h-5 text-violet-600" />}
+            iconClassName="bg-violet-50 border-violet-100"
+            subtext="Todos disponibles"
+          />
+          <StatCard
+            label="Satisfacción"
+            value="98%"
+            icon={<TrendingUp className="w-5 h-5 text-amber-600" />}
+            iconClassName="bg-amber-50 border-amber-100"
+            trend="up"
+            trendPercent={3}
+            trendLabel="esta semana"
           />
         </div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-card">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Ingresos últimos 7 días</h2>
-            <div className="h-64 flex items-center justify-center text-slate-400">
-              <p>Gráfico de barras (implementar con Recharts)</p>
+        {/* ── Charts Row ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
+          {/* Bar chart */}
+          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6">
+            <div className="flex items-start justify-between mb-6 gap-4">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                  Ingresos últimos 7 días
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Total semana:{" "}
+                  <span className="font-bold text-slate-700">
+                    $
+                    {weekData.reduce((s, d) => s + d.value, 0).toLocaleString()}
+                    K
+                  </span>
+                </p>
+              </div>
+              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 hover:border-blue-300 hover:text-blue-600 transition-all flex-shrink-0">
+                Esta semana <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+
+            <div className="flex items-end gap-2 h-44">
+              {weekData.map((d, i) => {
+                const hPct = Math.round((d.value / maxWeek) * 100);
+                const isToday = i === 4;
+                return (
+                  <div
+                    key={d.day}
+                    className="flex-1 flex flex-col items-center gap-1.5"
+                  >
+                    <div
+                      className="w-full flex flex-col justify-end"
+                      style={{ height: "168px" }}
+                    >
+                      <div
+                        className={`w-full rounded-t-lg border transition-all group relative ${
+                          isToday
+                            ? "bg-blue-600 border-blue-500 hover:bg-blue-700"
+                            : "bg-blue-100 border-blue-200 hover:bg-blue-200"
+                        }`}
+                        style={{ height: `${hPct}%` }}
+                      >
+                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-bold px-2 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                          ${d.value}K
+                        </div>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-xs font-semibold ${isToday ? "text-blue-600" : "text-slate-400"}`}
+                    >
+                      {d.day}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-card">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Servicios top</h2>
-            <div className="space-y-3">
-              {mockServices.slice(0, 3).map((service) => (
-                <div key={service.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50">
-                  <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{service.name}</span>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white">5 citas</span>
+          {/* Top services */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                Servicios top
+              </h2>
+              <Link href="/services">
+                <span className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">
+                  Ver todos →
+                </span>
+              </Link>
+            </div>
+            <div className="space-y-4">
+              {topServices.map((s, i) => (
+                <div key={s.name}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm font-semibold text-slate-700">
+                      {s.name}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">
+                      {s.count} citas
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${
+                        i === 0
+                          ? "bg-blue-600"
+                          : i === 1
+                            ? "bg-blue-400"
+                            : i === 2
+                              ? "bg-blue-300"
+                              : "bg-blue-200"
+                      }`}
+                      style={{ width: `${s.pct}%` }}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Upcoming Appointments */}
-        <div className="bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-card">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Próximas citas</h2>
-            <a href="/appointments" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-              Ver todas →
-            </a>
+        {/* ── Quick Actions + Activity ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
+          {/* Quick actions */}
+          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6">
+            <h2 className="text-sm font-bold text-slate-900 tracking-tight mb-4">
+              Acciones rápidas
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {quickActions.map((a) => {
+                const Icon = a.icon;
+                return (
+                  <Link key={a.label} href={a.href}>
+                    <div className="flex flex-col items-center gap-2.5 p-4 rounded-xl border border-slate-200 bg-slate-50 hover:border-blue-300 hover:bg-blue-50 hover:-translate-y-0.5 hover:shadow-sm transition-all cursor-pointer text-center group">
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center ${a.bg}`}
+                      >
+                        <Icon className={`w-5 h-5 ${a.iconClass}`} />
+                      </div>
+                      <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900 leading-tight">
+                        {a.label}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
 
-          <DataTable
-            columns={[
-              { key: 'clientName', label: 'Cliente', width: '25%' },
-              { key: 'service', label: 'Servicio', width: '25%' },
-              { key: 'time', label: 'Hora', width: '20%' },
-              {
-                key: 'status',
-                label: 'Estado',
-                width: '20%',
-                render: (item, status) => <StatusBadge status={status} />,
-              },
-              { key: 'employee', label: 'Empleado', width: '10%' },
-            ]}
-            data={mockAppointments.map(a => {
-              const service = mockServices.find(s => s.id === a.serviceId)
-              return {
-                clientName: 'Cliente ' + a.id,
-                service: service?.name || 'N/A',
-                time: a.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-                status: a.status,
-                employee: 'Empleado ' + a.employeeId,
-              }
-            })}
+          {/* Activity feed */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                Actividad reciente
+              </h2>
+              <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {recentActivity.map((item, i) => {
+                const Icon = item.icon;
+                return (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${item.bg}`}
+                    >
+                      <Icon className={`w-4 h-4 ${item.iconClass}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-900 leading-tight">
+                        {item.title}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5 truncate">
+                        {item.sub}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Clock className="w-2.5 h-2.5 text-slate-300" />
+                      <span className="text-xs text-slate-400 whitespace-nowrap">
+                        {item.time}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Appointments table ── */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-5 gap-4">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                Citas de hoy
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {todayAppointments.length} citas programadas
+              </p>
+            </div>
+            <Link href="/appointments">
+              <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all flex-shrink-0">
+                Ver todas <ArrowRight className="w-3 h-3" />
+              </button>
+            </Link>
+          </div>
+
+          <DataTable<AppointmentRow>
+            columns={appointmentColumns}
+            data={tableData}
+            searchFields={["client", "service", "employee"]}
+            searchPlaceholder="Buscar cliente, servicio..."
+            pageSize={6}
           />
         </div>
       </main>
     </div>
-  )
+  );
 }

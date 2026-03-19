@@ -1,128 +1,171 @@
-'use client'
+"use client";
 
-import { ReactNode, useState } from 'react'
-import { Search, ChevronUp, ChevronDown } from 'lucide-react'
+import { ReactNode, useState } from "react";
+import {
+  Search,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
+  Inbox,
+} from "lucide-react";
 
-interface Column<T> {
-  key: string
-  label: string
-  render?: (item: T, value: any) => ReactNode
-  width?: string
+export interface Column<T> {
+  key: string;
+  label: string;
+  render?: (item: T, value: unknown) => ReactNode;
+  width?: string;
+  sortable?: boolean;
+  align?: "left" | "center" | "right";
 }
 
 interface DataTableProps<T> {
-  columns: Column<T>[]
-  data: T[]
-  searchFields?: string[]
-  onRowClick?: (item: T) => void
+  columns: Column<T>[];
+  data: T[];
+  searchFields?: string[];
+  searchPlaceholder?: string;
+  onRowClick?: (item: T) => void;
+  emptyMessage?: string;
+  pageSize?: number;
 }
 
-export default function DataTable<T extends Record<string, any>>({
+export default function DataTable<T extends Record<string, unknown>>({
   columns,
   data,
   searchFields = [],
+  searchPlaceholder = "Buscar...",
   onRowClick,
+  emptyMessage = "Sin resultados",
+  pageSize = 8,
 }: DataTableProps<T>) {
-  const [search, setSearch] = useState('')
-  const [sortKey, setSortKey] = useState<string>('')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<string>("");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
 
-  // Filtrar datos
-  const filteredData = data.filter((item) => {
-    if (!search) return true
-    return searchFields.some((field) =>
-      String(item[field]).toLowerCase().includes(search.toLowerCase())
-    )
-  })
+  const filtered = data.filter((item) => {
+    if (!search) return true;
+    return searchFields.some((f) =>
+      String(item[f] ?? "")
+        .toLowerCase()
+        .includes(search.toLowerCase()),
+    );
+  });
 
-  // Ordenar datos
-  const sortedData = [...filteredData].sort((a, b) => {
-    if (!sortKey) return 0
+  const sorted = [...filtered].sort((a, b) => {
+    if (!sortKey) return 0;
+    const av = String(a[sortKey] ?? "");
+    const bv = String(b[sortKey] ?? "");
+    if (av < bv) return sortDir === "asc" ? -1 : 1;
+    if (av > bv) return sortDir === "asc" ? 1 : -1;
+    return 0;
+  });
 
-    const aVal = a[sortKey]
-    const bVal = b[sortKey]
-
-    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
-    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
-    return 0
-  })
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const paginated = sorted.slice((page - 1) * pageSize, page * pageSize);
 
   const handleSort = (key: string) => {
-    if (sortKey === key) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortKey(key)
-      setSortDirection('asc')
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir("asc");
     }
-  }
+    setPage(1);
+  };
+
+  const alignClass = (align?: "left" | "center" | "right") => {
+    if (align === "center") return "text-center";
+    if (align === "right") return "text-right";
+    return "text-left";
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-3">
       {/* Search */}
       {searchFields.length > 0 && (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <div className="relative w-full max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           <input
             type="text"
-            placeholder="Buscar..."
+            placeholder={searchPlaceholder}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="w-full h-9 pl-9 pr-4 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm placeholder:text-slate-400 font-medium outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
         </div>
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
-            <tr>
-              {columns.map((column) => (
+      <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              {columns.map((col) => (
                 <th
-                  key={column.key}
-                  className="px-6 py-3 text-left font-semibold text-slate-600 dark:text-slate-400"
-                  style={{ width: column.width }}
+                  key={col.key}
+                  style={{ width: col.width }}
+                  className={`px-4 py-3 font-bold text-xs uppercase tracking-wider text-slate-400 ${alignClass(col.align)}`}
                 >
-                  <button
-                    onClick={() => handleSort(column.key)}
-                    className="flex items-center gap-2 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
-                  >
-                    {column.label}
-                    {sortKey === column.key && (
-                      sortDirection === 'asc' ? (
-                        <ChevronUp className="w-4 h-4" />
+                  {col.sortable !== false ? (
+                    <button
+                      onClick={() => handleSort(col.key)}
+                      className={`inline-flex items-center gap-1.5 hover:text-blue-600 transition-colors ${
+                        sortKey === col.key ? "text-blue-600" : "text-slate-400"
+                      }`}
+                    >
+                      {col.label}
+                      {sortKey === col.key ? (
+                        sortDir === "asc" ? (
+                          <ChevronUp className="w-3 h-3" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3" />
+                        )
                       ) : (
-                        <ChevronDown className="w-4 h-4" />
-                      )
-                    )}
-                  </button>
+                        <ChevronsUpDown className="w-3 h-3 opacity-40" />
+                      )}
+                    </button>
+                  ) : (
+                    col.label
+                  )}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-            {sortedData.length === 0 ? (
+
+          <tbody className="bg-white divide-y divide-slate-100">
+            {paginated.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-6 py-8 text-center">
-                  <p className="text-slate-500 dark:text-slate-400">No hay datos</p>
+                <td colSpan={columns.length} className="px-4 py-14 text-center">
+                  <div className="flex flex-col items-center gap-3 text-slate-400">
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center">
+                      <Inbox className="w-5 h-5" />
+                    </div>
+                    <p className="text-sm font-medium">{emptyMessage}</p>
+                  </div>
                 </td>
               </tr>
             ) : (
-              sortedData.map((item, idx) => (
+              paginated.map((item, idx) => (
                 <tr
                   key={idx}
-                  className={`hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors ${
-                    onRowClick ? 'cursor-pointer' : ''
-                  }`}
                   onClick={() => onRowClick?.(item)}
+                  className={`transition-colors hover:bg-slate-50 ${onRowClick ? "cursor-pointer" : ""}`}
                 >
-                  {columns.map((column) => (
+                  {columns.map((col) => (
                     <td
-                      key={`${idx}-${column.key}`}
-                      className="px-6 py-4 text-slate-900 dark:text-slate-100"
-                      style={{ width: column.width }}
+                      key={`${idx}-${col.key}`}
+                      className={`px-4 py-3.5 text-slate-700 font-medium ${alignClass(col.align)}`}
+                      style={{ width: col.width }}
                     >
-                      {column.render ? column.render(item, item[column.key]) : item[column.key]}
+                      {col.render ? (
+                        col.render(item, item[col.key])
+                      ) : (
+                        <span className="text-sm">
+                          {String(item[col.key] ?? "—")}
+                        </span>
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -132,10 +175,49 @@ export default function DataTable<T extends Record<string, any>>({
         </table>
       </div>
 
-      {/* Info */}
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        {filteredData.length} de {data.length} registros
-      </p>
+      {/* Footer */}
+      <div className="flex items-center justify-between flex-wrap gap-3 px-0.5">
+        <p className="text-xs text-slate-400 font-medium">
+          {filtered.length === 0
+            ? "Sin resultados"
+            : `Mostrando ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, filtered.length)} de ${filtered.length} registros`}
+        </p>
+
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="h-7 px-2.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-500 hover:border-blue-400 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              ‹
+            </button>
+            {[...Array(totalPages)].map((_, i) => {
+              const p = i + 1;
+              return (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`h-7 w-7 rounded-lg border text-xs font-bold transition-all ${
+                    p === page
+                      ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                      : "bg-white border-slate-200 text-slate-500 hover:border-blue-400 hover:text-blue-600"
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="h-7 px-2.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-500 hover:border-blue-400 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              ›
+            </button>
+          </div>
+        )}
+      </div>
     </div>
-  )
+  );
 }

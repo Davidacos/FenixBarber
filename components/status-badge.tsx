@@ -1,63 +1,69 @@
-import { cn } from '@/lib/utils'
-
-type Status = 'pendiente' | 'confirmada' | 'completada' | 'cancelada' | 'no-asistio' | 'activo' | 'inactivo'
-
-const statusConfig: Record<Status, { bg: string; text: string; label: string }> = {
-  pendiente: {
-    bg: 'bg-yellow-50 dark:bg-yellow-950/30',
-    text: 'text-yellow-700 dark:text-yellow-400',
-    label: 'Pendiente',
-  },
-  confirmada: {
-    bg: 'bg-blue-50 dark:bg-blue-950/30',
-    text: 'text-blue-700 dark:text-blue-400',
-    label: 'Confirmada',
-  },
-  completada: {
-    bg: 'bg-green-50 dark:bg-green-950/30',
-    text: 'text-green-700 dark:text-green-400',
-    label: 'Completada',
-  },
-  cancelada: {
-    bg: 'bg-red-50 dark:bg-red-950/30',
-    text: 'text-red-700 dark:text-red-400',
-    label: 'Cancelada',
-  },
-  'no-asistio': {
-    bg: 'bg-gray-50 dark:bg-gray-950/30',
-    text: 'text-gray-700 dark:text-gray-400',
-    label: 'No asistió',
-  },
-  activo: {
-    bg: 'bg-green-50 dark:bg-green-950/30',
-    text: 'text-green-700 dark:text-green-400',
-    label: 'Activo',
-  },
-  inactivo: {
-    bg: 'bg-slate-50 dark:bg-slate-900/30',
-    text: 'text-slate-700 dark:text-slate-400',
-    label: 'Inactivo',
-  },
-}
+type Status =
+  | "pendiente"
+  | "confirmada"
+  | "completada"
+  | "cancelada"
+  | "no-asistio"
+  | "activo"
+  | "inactivo";
 
 interface StatusBadgeProps {
-  status: Status
-  className?: string
+  status: Status;
+  size?: "sm" | "md";
 }
 
-export default function StatusBadge({ status, className }: StatusBadgeProps) {
-  const config = statusConfig[status]
+const statusMap: Record<
+  Status,
+  { wrapper: string; dot: string; label: string }
+> = {
+  pendiente: {
+    wrapper: "bg-amber-50 border border-amber-200 text-amber-800",
+    dot: "bg-amber-400",
+    label: "Pendiente",
+  },
+  confirmada: {
+    wrapper: "bg-blue-50 border border-blue-200 text-blue-800",
+    dot: "bg-blue-500",
+    label: "Confirmada",
+  },
+  completada: {
+    wrapper: "bg-emerald-50 border border-emerald-200 text-emerald-800",
+    dot: "bg-emerald-500",
+    label: "Completada",
+  },
+  cancelada: {
+    wrapper: "bg-red-50 border border-red-200 text-red-800",
+    dot: "bg-red-500",
+    label: "Cancelada",
+  },
+  "no-asistio": {
+    wrapper: "bg-slate-50 border border-slate-200 text-slate-600",
+    dot: "bg-slate-400",
+    label: "No asistió",
+  },
+  activo: {
+    wrapper: "bg-emerald-50 border border-emerald-200 text-emerald-800",
+    dot: "bg-emerald-500",
+    label: "Activo",
+  },
+  inactivo: {
+    wrapper: "bg-slate-50 border border-slate-200 text-slate-500",
+    dot: "bg-slate-400",
+    label: "Inactivo",
+  },
+};
+
+export default function StatusBadge({ status, size = "md" }: StatusBadgeProps) {
+  const { wrapper, dot, label } = statusMap[status];
+  const sizeClass =
+    size === "sm" ? "px-2 py-0.5 text-xs gap-1" : "px-2.5 py-1 text-xs gap-1.5";
 
   return (
     <span
-      className={cn(
-        'inline-flex px-3 py-1 rounded-full text-sm font-medium',
-        config.bg,
-        config.text,
-        className
-      )}
+      className={`inline-flex items-center rounded-full font-semibold whitespace-nowrap ${wrapper} ${sizeClass}`}
     >
-      {config.label}
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
+      {label}
     </span>
-  )
+  );
 }

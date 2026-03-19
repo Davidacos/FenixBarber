@@ -1,56 +1,75 @@
-import { ReactNode } from 'react'
-import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
+import { ReactNode } from "react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 
 interface StatCardProps {
-  label: string
-  value: string | number
-  icon?: ReactNode
-  trend?: 'up' | 'down' | 'neutral'
-  trendPercent?: number
-  subtext?: string
+  label: string;
+  value: string | number;
+  icon?: ReactNode;
+  iconClassName?: string;
+  trend?: "up" | "down" | "neutral";
+  trendPercent?: number;
+  trendLabel?: string;
+  subtext?: string;
 }
 
 export default function StatCard({
   label,
   value,
   icon,
-  trend = 'neutral',
+  iconClassName = "bg-blue-50",
+  trend = "neutral",
   trendPercent = 0,
+  trendLabel = "vs mes anterior",
   subtext,
 }: StatCardProps) {
+  const showTrend = trend !== "neutral" && trendPercent !== 0;
+  const isUp = trend === "up";
+
   return (
-    <div className="bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-card hover:shadow-card-hover transition-all duration-300">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">{label}</p>
-          <p className="text-3xl font-bold text-slate-900 dark:text-white mb-3">{value}</p>
+    <div className="group relative bg-white border border-slate-200 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-200 overflow-hidden">
+      {/* Accent line on hover */}
+      <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-t-2xl" />
+
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2.5">
+            {label}
+          </p>
+          <p className="text-3xl font-extrabold text-slate-900 tracking-tight leading-none mb-3">
+            {value}
+          </p>
 
           {subtext && (
-            <p className="text-xs text-slate-500 dark:text-slate-500">{subtext}</p>
+            <p className="text-xs text-slate-400 font-medium">{subtext}</p>
           )}
 
-          {trend !== 'neutral' && trendPercent !== 0 && (
-            <div className={`flex items-center gap-1 mt-2 text-sm font-medium ${
-              trend === 'up' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-            }`}>
-              {trend === 'up' ? (
-                <ArrowUpRight className="w-4 h-4" />
+          {showTrend && (
+            <div
+              className={`inline-flex items-center gap-1.5 mt-1 px-2.5 py-1 rounded-full border text-xs font-bold ${
+                isUp
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                  : "bg-red-50 border-red-200 text-red-700"
+              }`}
+            >
+              {isUp ? (
+                <TrendingUp className="w-3 h-3" />
               ) : (
-                <ArrowDownRight className="w-4 h-4" />
+                <TrendingDown className="w-3 h-3" />
               )}
-              <span>{trendPercent}% vs mes anterior</span>
+              {isUp ? "+" : "-"}
+              {trendPercent}% {trendLabel}
             </div>
           )}
         </div>
 
         {icon && (
-          <div className="flex-shrink-0">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-indigo-50 dark:bg-indigo-950/50">
-              {icon}
-            </div>
+          <div
+            className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 border border-blue-100 ${iconClassName}`}
+          >
+            {icon}
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }
