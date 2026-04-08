@@ -27,10 +27,35 @@ export const mockCompanies = [
   },
 ]
 
+export const mockBranches = [
+  {
+    id: "branch-1",
+    companyId: "1",
+    name: "Sede Centro",
+    address: "Av. Principal 123",
+    phone: "+34 600 000 000",
+  },
+  {
+    id: "branch-2",
+    companyId: "1",
+    name: "Sede Norte",
+    address: "Plaza Mayor, Local 45",
+    phone: "+34 600 000 001",
+  },
+  {
+    id: "branch-3",
+    companyId: "2",
+    name: "Barbería Principal",
+    address: "Calle 10 #20-30",
+    phone: "+34 600 111 222",
+  }
+]
+
 export const mockServices = [
   {
     id: "1",
     companyId: "1",
+    branchId: "branch-1",
     name: "Corte de cabello",
     description: "Corte moderno y personalizado",
     category: "belleza",
@@ -41,6 +66,7 @@ export const mockServices = [
   {
     id: "2",
     companyId: "1",
+    branchId: "branch-1",
     name: "Peinado especial",
     description: "Peinado para eventos",
     category: "belleza",
@@ -51,6 +77,7 @@ export const mockServices = [
   {
     id: "3",
     companyId: "1",
+    branchId: "branch-2",
     name: "Tratamiento capilar",
     description: "Hidratación profunda",
     category: "belleza",
@@ -61,6 +88,7 @@ export const mockServices = [
   {
     id: "4",
     companyId: "1",
+    branchId: "branch-2",
     name: "Manicura",
     description: "Manicura gel o acrílico",
     category: "belleza",
@@ -71,6 +99,7 @@ export const mockServices = [
   {
     id: "5",
     companyId: "2",
+    branchId: "branch-3",
     name: "Corte barba",
     description: "Recorte de barba profesional",
     category: "barberia",
@@ -81,6 +110,7 @@ export const mockServices = [
   {
     id: "6",
     companyId: "2",
+    branchId: "branch-3",
     name: "Corte + Barba",
     description: "Corte completo con barba",
     category: "barberia",
@@ -94,6 +124,7 @@ export const mockEmployees = [
   {
     id: "1",
     companyId: "1",
+    branchId: "branch-1",
     name: "María García",
     email: "maria@salon.com",
     phone: "+34 600 000 001",
@@ -101,11 +132,12 @@ export const mockEmployees = [
     role: "Estilista",
     commission: 15,
     active: true,
-    services: ["1", "2", "3"],
+    services: ["1", "2"],
   },
   {
     id: "2",
     companyId: "1",
+    branchId: "branch-2",
     name: "Ana López",
     email: "ana@salon.com",
     phone: "+34 600 000 002",
@@ -113,11 +145,12 @@ export const mockEmployees = [
     role: "Esteticien",
     commission: 20,
     active: true,
-    services: ["4"],
+    services: ["3", "4"],
   },
   {
     id: "3",
     companyId: "2",
+    branchId: "branch-3",
     name: "Carlos Martínez",
     email: "carlos@barberia.com",
     phone: "+34 600 000 003",
@@ -133,26 +166,32 @@ export const mockClients = [
   {
     id: "1",
     companyId: "1",
+    branchId: "branch-1",
     name: "Juan Pérez",
     email: "juan@email.com",
     phone: "+34 600 111 111",
     appointments: 5,
+    points: 120,
   },
   {
     id: "2",
     companyId: "1",
+    branchId: "branch-1",
     name: "Rosa Fernández",
     email: "rosa@email.com",
     phone: "+34 600 111 112",
     appointments: 12,
+    points: 850,
   },
   {
     id: "3",
     companyId: "1",
+    branchId: "branch-2",
     name: "Elena Sánchez",
     email: "elena@email.com",
     phone: "+34 600 111 113",
     appointments: 3,
+    points: 0,
   },
 ]
 
@@ -160,6 +199,7 @@ export const mockAppointments = [
   {
     id: "1",
     companyId: "1",
+    branchId: "branch-1",
     clientId: "1",
     serviceId: "1",
     employeeId: "1",
@@ -171,6 +211,7 @@ export const mockAppointments = [
   {
     id: "2",
     companyId: "1",
+    branchId: "branch-1",
     clientId: "2",
     serviceId: "2",
     employeeId: "1",
@@ -182,10 +223,11 @@ export const mockAppointments = [
   {
     id: "3",
     companyId: "1",
+    branchId: "branch-2",
     clientId: "3",
     serviceId: "4",
     employeeId: "2",
-    date: new Date(2024, 2, 15, 14, 30),
+    date: new Date(), // Hoy para el dashboard
     duration: 45,
     status: "pendiente" as const,
     notes: "Primera cita",
@@ -193,13 +235,63 @@ export const mockAppointments = [
   {
     id: "4",
     companyId: "1",
+    branchId: "branch-1",
     clientId: "1",
-    serviceId: "3",
+    serviceId: "1",
     employeeId: "1",
-    date: new Date(2024, 2, 16, 9, 0),
+    date: new Date(), // Hoy para el dashboard
     duration: 60,
     status: "completada" as const,
     notes: "",
+  },
+  // Today's pending appointments for Caja demo (branch-1)
+  {
+    id: "5",
+    companyId: "1",
+    branchId: "branch-1",
+    clientId: "1",
+    serviceId: "2",
+    employeeId: "1",
+    date: new Date(new Date().setHours(9, 0, 0, 0)),
+    duration: 45,
+    status: "pendiente" as const,
+    notes: "Cliente frecuente",
+  },
+  {
+    id: "6",
+    companyId: "1",
+    branchId: "branch-1",
+    clientId: "2",
+    serviceId: "1",
+    employeeId: "1",
+    date: new Date(new Date().setHours(10, 30, 0, 0)),
+    duration: 30,
+    status: "pendiente" as const,
+    notes: "",
+  },
+  {
+    id: "7",
+    companyId: "1",
+    branchId: "branch-1",
+    clientId: "1",
+    serviceId: "3",
+    employeeId: "1",
+    date: new Date(new Date().setHours(12, 0, 0, 0)),
+    duration: 60,
+    status: "pendiente" as const,
+    notes: "Pide descuento",
+  },
+  {
+    id: "8",
+    companyId: "1",
+    branchId: "branch-2",
+    clientId: "3",
+    serviceId: "4",
+    employeeId: "2",
+    date: new Date(new Date().setHours(11, 0, 0, 0)),
+    duration: 45,
+    status: "pendiente" as const,
+    notes: "Primera cita",
   },
 ]
 
@@ -207,6 +299,7 @@ export const mockTransactions = [
   {
     id: "1",
     companyId: "1",
+    branchId: "branch-1",
     type: "ingreso" as const,
     amount: 25.00,
     category: "Servicios",
@@ -217,6 +310,7 @@ export const mockTransactions = [
   {
     id: "2",
     companyId: "1",
+    branchId: "branch-1",
     type: "ingreso" as const,
     amount: 45.00,
     category: "Servicios",
@@ -227,6 +321,7 @@ export const mockTransactions = [
   {
     id: "3",
     companyId: "1",
+    branchId: "branch-1",
     type: "gasto" as const,
     amount: 150.00,
     category: "Suministros",
@@ -236,6 +331,7 @@ export const mockTransactions = [
   {
     id: "4",
     companyId: "1",
+    branchId: "branch-2",
     type: "gasto" as const,
     amount: 50.00,
     category: "Mantenimiento",
@@ -245,11 +341,87 @@ export const mockTransactions = [
   {
     id: "5",
     companyId: "1",
+    branchId: "branch-2",
     type: "ingreso" as const,
     amount: 30.00,
     category: "Servicios",
     description: "Manicura",
     date: new Date(2024, 2, 15, 15, 0),
+  },
+]
+
+export const mockProducts = [
+  {
+    id: "prod-1",
+    companyId: "1",
+    branchId: "branch-1",
+    name: "Shampoo Profesional 500ml",
+    description: "Shampoo para todo tipo de cabello, fórmula sin sulfatos con aceite de argán",
+    price: 35000,
+    stock: 24,
+    category: "Cuidado Capilar",
+    image: "🧴",
+    active: true,
+  },
+  {
+    id: "prod-2",
+    companyId: "1",
+    branchId: "branch-1",
+    name: "Pomada Mate Efecto Natural",
+    description: "Control fuerte con acabado mate. Ideal para estilos modernos",
+    price: 28000,
+    stock: 15,
+    category: "Styling",
+    image: "🫙",
+    active: true,
+  },
+  {
+    id: "prod-3",
+    companyId: "1",
+    branchId: "branch-1",
+    name: "Aceite de Barba Premium",
+    description: "Hidrata y da brillo a la barba, aroma a madera y cítricos",
+    price: 42000,
+    stock: 8,
+    category: "Barba",
+    image: "💧",
+    active: true,
+  },
+  {
+    id: "prod-4",
+    companyId: "1",
+    branchId: "branch-1",
+    name: "Kit Barbería Completo",
+    description: "Incluye peine, navaja, aceite y bálsamo. El regalo perfecto",
+    price: 95000,
+    stock: 5,
+    category: "Kits",
+    image: "💈",
+    active: true,
+  },
+  {
+    id: "prod-5",
+    companyId: "1",
+    branchId: "branch-1",
+    name: "Bálsamo Aftershave Refrescante",
+    description: "Calma la piel después del afeitado, aroma mentol fresco",
+    price: 22000,
+    stock: 30,
+    category: "Barba",
+    image: "🌿",
+    active: true,
+  },
+  {
+    id: "prod-6",
+    companyId: "1",
+    branchId: "branch-2",
+    name: "Mascarilla Capilar Nutritiva",
+    description: "Tratamiento intensivo con proteínas de keratina y vitaminas",
+    price: 45000,
+    stock: 12,
+    category: "Cuidado Capilar",
+    image: "✨",
+    active: true,
   },
 ]
 
@@ -276,3 +448,4 @@ export const mockUsers = [
     role: "admin",
   },
 ]
+

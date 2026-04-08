@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { ModeToggle } from "./mode-toggle";
 
 const routeMeta: Record<string, { title: string; description: string }> = {
   "/dashboard": {
@@ -77,32 +78,35 @@ export default function Topbar() {
         <div className="fixed inset-0 z-10" onClick={closeAll} />
       )}
 
-      <header className="fixed top-0 right-0 left-0 md:left-64 h-16 bg-white border-b border-slate-200 z-20 flex items-center px-5 gap-4 justify-between">
+      <header 
+        className="fixed top-0 right-0 z-20 h-16 bg-white dark:bg-[#0c111d] border-b border-slate-200 dark:border-slate-800 flex items-center px-5 gap-4 justify-between transition-all duration-200"
+        style={{ left: 'var(--sidebar-width)' }}
+      >
         {/* Left – page title */}
         <div className="min-w-0 hidden md:block">
-          <h1 className="text-base font-extrabold text-slate-900 tracking-tight leading-tight truncate">
+          <h1 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight truncate">
             {meta.title}
           </h1>
-          <p className="text-xs text-slate-400 font-medium hidden lg:block">
+          <p className="text-xs text-slate-400 dark:text-slate-500 font-medium hidden lg:block">
             {meta.description}
           </p>
         </div>
 
         {/* Center – search */}
         <div className="flex-1 max-w-sm relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-600 pointer-events-none" />
           <input
             type="text"
             placeholder="Buscar citas, clientes, servicios..."
-            className="w-full h-9 pl-9 pr-10 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 text-xs font-medium placeholder:text-slate-400 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white"
+            className="w-full h-9 pl-9 pr-10 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 text-xs font-medium placeholder:text-slate-400 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/20 focus:bg-white dark:focus:bg-slate-900"
           />
-          <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 bg-white text-slate-400 text-xs font-mono leading-none">
+          <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-600 text-xs font-mono leading-none">
             ⌘K
           </kbd>
         </div>
 
         {/* Right – actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Notifications */}
           <div className="relative z-20">
             <button
@@ -112,8 +116,8 @@ export default function Topbar() {
               }}
               className={`relative w-9 h-9 rounded-xl border flex items-center justify-center transition-all ${
                 notifOpen
-                  ? "border-blue-400 bg-blue-50 text-blue-600"
-                  : "border-slate-200 bg-white text-slate-500 hover:border-blue-200 hover:bg-slate-50"
+                  ? "border-blue-400 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                  : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-500 dark:text-slate-400 hover:border-blue-200 dark:hover:border-blue-900 hover:bg-slate-50 dark:hover:bg-slate-900"
               }`}
             >
               <Bell className="w-4 h-4" />
@@ -138,7 +142,7 @@ export default function Topbar() {
                       className="flex items-start gap-3 px-4 py-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors"
                     >
                       <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${n.bg}`}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${n.bg}`}
                       >
                         <Icon className={`w-4 h-4 ${n.iconClass}`} />
                       </div>
@@ -150,7 +154,7 @@ export default function Topbar() {
                           {n.sub}
                         </p>
                       </div>
-                      <span className="text-xs text-slate-400 whitespace-nowrap mt-0.5 flex-shrink-0">
+                      <span className="text-xs text-slate-400 whitespace-nowrap mt-0.5 shrink-0">
                         {n.time}
                       </span>
                     </div>
@@ -165,15 +169,18 @@ export default function Topbar() {
             )}
           </div>
 
+          {/* Theme Toggle */}
+          <ModeToggle />
+
           {/* Settings shortcut */}
           <Link href="/settings">
-            <button className="w-9 h-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:border-blue-200 hover:bg-slate-50 hover:text-blue-600 transition-all">
+            <button className="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:border-blue-200 dark:hover:border-blue-900 hover:bg-slate-50 dark:hover:bg-slate-900 hover:text-blue-600 dark:hover:text-blue-400 transition-all">
               <Settings className="w-4 h-4" />
             </button>
           </Link>
 
           {/* Divider */}
-          <div className="w-px h-6 bg-slate-200 mx-1" />
+          <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
 
           {/* Profile */}
           <div className="relative z-20">
@@ -184,16 +191,16 @@ export default function Topbar() {
               }}
               className={`flex items-center gap-2 pl-1 pr-3 py-1 rounded-xl border transition-all ${
                 profileOpen
-                  ? "border-blue-400 bg-blue-50"
-                  : "border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50"
+                  ? "border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                  : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-blue-200 dark:hover:border-blue-900 hover:bg-slate-50 dark:hover:bg-slate-900"
               }`}
             >
-              <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+              <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
                 CR
               </div>
               <div className="hidden sm:block text-left leading-tight">
-                <p className="text-xs font-bold text-slate-900">Carlos R.</p>
-                <p className="text-xs text-slate-400">Administrador</p>
+                <p className="text-xs font-bold text-slate-900 dark:text-white">Carlos R.</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">Administrador</p>
               </div>
               <ChevronDown
                 className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`}

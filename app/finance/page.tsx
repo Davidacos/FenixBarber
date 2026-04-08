@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useBranch } from "@/contexts/BranchContext";
+import { getTransactions, createTransaction, deleteTransaction } from "@/lib/api";
 import {
   Plus,
   TrendingUp,
@@ -23,7 +25,6 @@ import Topbar from "@/components/topbar";
 import PageHeader from "@/components/page-header";
 import DataTable, { type Column } from "@/components/data-table";
 import Modal from "@/components/modal";
-import { mockTransactions } from "@/lib/mock-data";
 
 // ── Types ──────────────────────────────────────────────────
 type TxType = "ingreso" | "gasto";
@@ -111,7 +112,7 @@ function buildColumns(onDelete: (id: string) => void): Column<TxRow>[] {
       key: "description",
       label: "Descripción",
       render: (_item, value) => (
-        <span className="font-semibold text-slate-900 text-sm">
+        <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
           {String(value)}
         </span>
       ),
@@ -120,7 +121,7 @@ function buildColumns(onDelete: (id: string) => void): Column<TxRow>[] {
       key: "category",
       label: "Categoría",
       render: (_item, value) => (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-600 capitalize">
+        <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-400 capitalize">
           {String(value)}
         </span>
       ),
@@ -129,8 +130,8 @@ function buildColumns(onDelete: (id: string) => void): Column<TxRow>[] {
       key: "date",
       label: "Fecha",
       render: (_item, value) => (
-        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
-          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">
+          <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
           {String(value)}
         </div>
       ),
@@ -162,7 +163,7 @@ function buildColumns(onDelete: (id: string) => void): Column<TxRow>[] {
               e.stopPropagation();
               onDelete(item.id);
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:border-red-300 hover:bg-red-50 hover:text-red-500 text-slate-400 transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 text-slate-400 dark:text-slate-500 transition-all"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -174,16 +175,27 @@ function buildColumns(onDelete: (id: string) => void): Column<TxRow>[] {
 
 // ── Component ──────────────────────────────────────────────
 export default function FinancePage() {
+  const { companyId, activeBranchId, activeBranch } = useBranch();
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [filterType, setFilterType] = useState<"todos" | TxType>("todos");
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
+  const [rawTransactions, setRawTransactions] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (companyId && activeBranchId) {
+      setIsLoading(true);
+      getTransactions(companyId, activeBranchId).then(setRawTransactions).finally(() => setIsLoading(false));
+    }
+  }, [companyId, activeBranchId]);
 
   // ── Mapped data ──
   const tableData: TxRow[] = useMemo(
     () =>
-      mockTransactions.map((t) => ({
+      rawTransactions.map((t) => ({
         id: t.id,
         type: t.type as TxType,
         description: t.description,
@@ -192,7 +204,7 @@ export default function FinancePage() {
         amount: t.amount,
         amountFmt: fmt(t.amount),
       })),
-    [],
+    [rawTransactions],
   );
 
   const filtered =
@@ -238,14 +250,32 @@ export default function FinancePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 700));
+    
+    const payload = {
+      ...formData,
+      amount: parseFloat(formData.amount) || 0,
+      companyId: companyId,
+      branchId: activeBranchId,
+      date: new Date(),
+    };
+
+    await createTransaction(payload);
+    const refreshed = await getTransactions(companyId!, activeBranchId!);
+    setRawTransactions(refreshed);
+
     setIsModalOpen(false);
+    setFormData(EMPTY_FORM);
     setSaving(false);
   };
 
   const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 500));
+    
+    await deleteTransaction(deleteConfirmId);
+    const refreshed = await getTransactions(companyId!, activeBranchId!);
+    setRawTransactions(refreshed);
+    
     setDeleteConfirmId(null);
     setSaving(false);
   };
@@ -262,18 +292,18 @@ export default function FinancePage() {
   const columns = buildColumns((id) => setDeleteConfirmId(id));
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Sidebar />
       <Topbar />
 
-      <main className="md:ml-64 pt-20 pb-12 px-5 md:px-7">
+      <main className="transition-all duration-200 pt-20 pb-12 px-5 md:px-7" style={{ marginLeft: 'var(--sidebar-width)' }}>
         <PageHeader
-          title="Finanzas"
-          description="Gestiona ingresos y gastos de tu negocio"
+          title={`Finanzas - ${activeBranch?.name || "..."}`}
+          description="Gestiona ingresos y gastos de tu sede"
           breadcrumb="Finanzas"
           actions={
             <div className="flex items-center gap-2.5">
-              <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
+              <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-600 dark:text-slate-400 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all">
                 <FileText className="w-3.5 h-3.5" /> Exportar
               </button>
               <button
@@ -281,16 +311,22 @@ export default function FinancePage() {
                   setFormData(EMPTY_FORM);
                   setIsModalOpen(true);
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-200 transition-all hover:-translate-y-px"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-200 dark:shadow-blue-900/20 transition-all hover:-translate-y-px"
               >
                 <Plus className="w-3.5 h-3.5" /> Nuevo movimiento
               </button>
             </div>
           }
         />
-
-        {/* ── KPI cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
+        
+        {isLoading ? (
+             <div className="flex justify-center items-center h-48 py-20">
+               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+             </div>
+        ) : (
+          <>
+            {/* ── KPI cards ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
           {[
             {
               label: "Total ingresos",
@@ -348,26 +384,26 @@ export default function FinancePage() {
             return (
               <div
                 key={c.label}
-                className="group relative bg-white border border-slate-200 rounded-2xl p-5 hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-200 transition-all overflow-hidden"
+                className="group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-800 transition-all overflow-hidden"
               >
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-2xl" />
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-linear-to-r from-blue-500 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-2xl" />
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center border flex-shrink-0 ${c.bg}`}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 ${c.bg} dark:bg-slate-950`}
                   >
                     <Icon className={`w-5 h-5 ${c.iconClass}`} />
                   </div>
                   <div
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-bold ${c.badgeClass}`}
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-bold ${c.badgeClass} dark:border-slate-800`}
                   >
                     {c.badgeIcon}
                     {c.badge}
                   </div>
                 </div>
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5">
                   {c.label}
                 </p>
-                <p className="text-2xl font-extrabold text-slate-900 tracking-tight leading-none">
+                <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight leading-none">
                   {c.value}
                 </p>
               </div>
@@ -378,23 +414,23 @@ export default function FinancePage() {
         {/* ── Charts row ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
           {/* Ingresos vs Gastos bars */}
-          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6">
+          <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">
                   Ingresos vs Gastos
                 </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                   Comparativa mensual por semana
                 </p>
               </div>
               <div className="flex items-center gap-3 text-xs font-semibold">
-                <span className="flex items-center gap-1.5 text-slate-500">
+                <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
                   <span className="w-3 h-3 rounded-sm bg-emerald-400 inline-block" />
                   Ingresos
                 </span>
-                <span className="flex items-center gap-1.5 text-slate-500">
-                  <span className="w-3 h-3 rounded-sm bg-red-300 inline-block" />
+                <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                  <span className="w-3 h-3 rounded-sm bg-red-300 dark:bg-red-400 inline-block" />
                   Gastos
                 </span>
               </div>
@@ -441,12 +477,12 @@ export default function FinancePage() {
           </div>
 
           {/* Category breakdown */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">
                 Gastos por categoría
               </h2>
-              <PieChart className="w-4 h-4 text-slate-400" />
+              <PieChart className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             </div>
             <div className="space-y-3.5">
               {categoryTotals.length === 0 ? (
@@ -457,14 +493,14 @@ export default function FinancePage() {
                 categoryTotals.map(([cat, total]) => (
                   <div key={cat}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-semibold text-slate-700 capitalize">
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 capitalize">
                         {cat}
                       </span>
-                      <span className="text-xs font-bold text-red-600">
+                      <span className="text-xs font-bold text-red-600 dark:text-red-400">
                         {fmt(total)}
                       </span>
                     </div>
-                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-red-400 rounded-full"
                         style={{
@@ -480,13 +516,13 @@ export default function FinancePage() {
         </div>
 
         {/* ── Transactions table ── */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
             <div>
-              <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">
                 Movimientos
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                 {filtered.length} registros
               </p>
             </div>
@@ -500,11 +536,11 @@ export default function FinancePage() {
                   className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all capitalize ${
                     filterType === opt
                       ? opt === "ingreso"
-                        ? "bg-emerald-50 border-emerald-400 text-emerald-700"
+                        ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-400 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400"
                         : opt === "gasto"
-                          ? "bg-red-50 border-red-400 text-red-700"
-                          : "bg-blue-50 border-blue-400 text-blue-700"
-                      : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                          ? "bg-red-50 dark:bg-red-900/20 border-red-400 dark:border-red-800 text-red-700 dark:text-red-400"
+                          : "bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-800 text-blue-700 dark:text-blue-400"
+                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600"
                   }`}
                 >
                   {opt === "todos"
@@ -526,6 +562,8 @@ export default function FinancePage() {
             emptyMessage="Sin movimientos registrados"
           />
         </div>
+        </>
+        )}
       </main>
 
       {/* ── New Transaction Modal ── */}
@@ -539,7 +577,7 @@ export default function FinancePage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Type toggle */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
               Tipo de movimiento <span className="text-red-500">*</span>
             </label>
             <div className="flex gap-2">
@@ -551,9 +589,9 @@ export default function FinancePage() {
                   className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-xl border-2 text-sm font-bold transition-all ${
                     formData.type === t
                       ? t === "ingreso"
-                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                        : "border-red-500 bg-red-50 text-red-700"
-                      : "border-slate-200 bg-white text-slate-400 hover:border-slate-300"
+                        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400"
+                        : "border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+                      : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-400 hover:border-slate-300 dark:hover:border-slate-700"
                   }`}
                 >
                   {t === "ingreso" ? (
@@ -573,7 +611,7 @@ export default function FinancePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Description */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 Descripción <span className="text-red-500">*</span>
               </label>
               <input
@@ -582,13 +620,13 @@ export default function FinancePage() {
                 value={formData.description}
                 onChange={set("description")}
                 placeholder="ej: Compra de insumos"
-                className="h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all"
+                className="h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all"
               />
             </div>
 
             {/* Category */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 Categoría <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -596,7 +634,7 @@ export default function FinancePage() {
                   required
                   value={formData.category}
                   onChange={set("category")}
-                  className="w-full h-10 pl-3 pr-8 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium outline-none appearance-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all cursor-pointer"
+                  className="w-full h-10 pl-3 pr-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium outline-none appearance-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all cursor-pointer"
                 >
                   <option value="" disabled>
                     Seleccionar categoría
@@ -615,7 +653,7 @@ export default function FinancePage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Amount */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 Monto <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -628,14 +666,14 @@ export default function FinancePage() {
                   value={formData.amount}
                   onChange={set("amount")}
                   placeholder="50000"
-                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all"
+                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all"
                 />
               </div>
             </div>
 
             {/* Date */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 Fecha <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -645,28 +683,28 @@ export default function FinancePage() {
                   type="date"
                   value={formData.date}
                   onChange={set("date")}
-                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all"
+                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all"
                 />
               </div>
             </div>
 
             {/* Time */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 Hora
               </label>
               <input
                 type="time"
                 value={formData.time}
                 onChange={set("time")}
-                className="h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all"
+                className="h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all"
               />
             </div>
           </div>
 
           {/* Notes */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
               Notas
             </label>
             <textarea
@@ -674,11 +712,11 @@ export default function FinancePage() {
               onChange={set("notes")}
               placeholder="Detalles adicionales..."
               rows={3}
-              className="px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all resize-none"
+              className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all resize-none"
             />
           </div>
 
-          <div className="border-t border-slate-100 pt-2" />
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-2" />
 
           <div className="flex gap-3">
             <button
@@ -704,7 +742,7 @@ export default function FinancePage() {
               type="button"
               disabled={saving}
               onClick={() => setIsModalOpen(false)}
-              className="flex-1 h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-bold text-slate-600 transition-all"
+              className="flex-1 h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:bg-slate-50 dark:hover:bg-slate-900 text-sm font-bold text-slate-600 dark:text-slate-400 transition-all"
             >
               Cancelar
             </button>
@@ -721,9 +759,9 @@ export default function FinancePage() {
         size="sm"
       >
         <div className="flex flex-col gap-5">
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-100">
-            <Trash2 className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-700 font-medium leading-relaxed">
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30">
+            <Trash2 className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-red-700 dark:text-red-400 font-medium leading-relaxed">
               ¿Seguro que quieres eliminar este movimiento? Los datos no podrán
               recuperarse.
             </p>
@@ -743,7 +781,7 @@ export default function FinancePage() {
             </button>
             <button
               onClick={() => setDeleteConfirmId(null)}
-              className="flex-1 h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-bold text-slate-600 transition-all"
+              className="flex-1 h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:bg-slate-50 dark:hover:bg-slate-900 text-sm font-bold text-slate-600 dark:text-slate-400 transition-all"
             >
               Cancelar
             </button>

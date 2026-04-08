@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronsUpDown,
   Inbox,
+  Loader2,
 } from "lucide-react";
 
 export interface Column<T> {
@@ -26,6 +27,7 @@ interface DataTableProps<T> {
   onRowClick?: (item: T) => void;
   emptyMessage?: string;
   pageSize?: number;
+  loading?: boolean;
 }
 
 export default function DataTable<T extends Record<string, unknown>>({
@@ -36,6 +38,7 @@ export default function DataTable<T extends Record<string, unknown>>({
   onRowClick,
   emptyMessage = "Sin resultados",
   pageSize = 8,
+  loading = false,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<string>("");
@@ -84,24 +87,24 @@ export default function DataTable<T extends Record<string, unknown>>({
       {searchFields.length > 0 && (
         <div className="relative w-full max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            placeholder={searchPlaceholder}
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="w-full h-9 pl-9 pr-4 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm placeholder:text-slate-400 font-medium outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          />
+            <input
+              type="text"
+              placeholder={searchPlaceholder}
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="w-full h-9 pl-9 pr-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm placeholder:text-slate-400 font-medium outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/20"
+            />
         </div>
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
         <table className="w-full text-sm border-collapse">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
+            <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -134,29 +137,38 @@ export default function DataTable<T extends Record<string, unknown>>({
             </tr>
           </thead>
 
-          <tbody className="bg-white divide-y divide-slate-100">
-            {paginated.length === 0 ? (
+          <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-100 dark:divide-slate-800 italic">
+            {loading ? (
+              <tr>
+                <td colSpan={columns.length} className="px-4 py-20 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    <p className="text-sm font-bold text-slate-400 not-italic">Cargando datos...</p>
+                  </div>
+                </td>
+              </tr>
+            ) : paginated.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-14 text-center">
                   <div className="flex flex-col items-center gap-3 text-slate-400">
                     <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center">
                       <Inbox className="w-5 h-5" />
                     </div>
-                    <p className="text-sm font-medium">{emptyMessage}</p>
+                    <p className="text-sm font-medium not-italic">{emptyMessage}</p>
                   </div>
                 </td>
               </tr>
             ) : (
               paginated.map((item, idx) => (
-                <tr
-                  key={idx}
-                  onClick={() => onRowClick?.(item)}
-                  className={`transition-colors hover:bg-slate-50 ${onRowClick ? "cursor-pointer" : ""}`}
-                >
+                  <tr
+                    key={idx}
+                    onClick={() => onRowClick?.(item)}
+                    className={`transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${onRowClick ? "cursor-pointer" : ""}`}
+                  >
                   {columns.map((col) => (
                     <td
                       key={`${idx}-${col.key}`}
-                      className={`px-4 py-3.5 text-slate-700 font-medium ${alignClass(col.align)}`}
+                      className={`px-4 py-3.5 text-slate-700 dark:text-slate-300 font-medium ${alignClass(col.align)}`}
                       style={{ width: col.width }}
                     >
                       {col.render ? (
@@ -188,7 +200,7 @@ export default function DataTable<T extends Record<string, unknown>>({
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="h-7 px-2.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-500 hover:border-blue-400 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="h-7 px-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:border-blue-400 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               ‹
             </button>
@@ -200,8 +212,8 @@ export default function DataTable<T extends Record<string, unknown>>({
                   onClick={() => setPage(p)}
                   className={`h-7 w-7 rounded-lg border text-xs font-bold transition-all ${
                     p === page
-                      ? "bg-blue-600 border-blue-600 text-white shadow-sm"
-                      : "bg-white border-slate-200 text-slate-500 hover:border-blue-400 hover:text-blue-600"
+                      ? "bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-900/20"
+                      : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-blue-400 hover:text-blue-600"
                   }`}
                 >
                   {p}
@@ -211,7 +223,7 @@ export default function DataTable<T extends Record<string, unknown>>({
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="h-7 px-2.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-500 hover:border-blue-400 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="h-7 px-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:border-blue-400 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               ›
             </button>

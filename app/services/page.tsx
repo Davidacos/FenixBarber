@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useBranch } from "@/contexts/BranchContext";
 import {
   Plus,
   Edit2,
@@ -24,7 +25,7 @@ import {
   createService,
   updateService,
   deleteService,
-} from "@/lib/actions/service-actions";
+} from "@/lib/api";
 
 // ── Types ─────────────────────────────────────────────────
 type ServiceStatus = "activo" | "inactivo";
@@ -48,8 +49,6 @@ type FormData = {
 };
 
 // ── Constants ─────────────────────────────────────────────
-const DEFAULT_COMPANY_ID = "salon-premium";
-
 const categories = [
   { id: "barberia", name: "Barbería", icon: "✂️" },
   { id: "belleza", name: "Belleza", icon: "💄" },
@@ -76,10 +75,10 @@ function buildColumns(
       label: "Servicio",
       render: (_item, value) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
-            <Scissors className="w-3.5 h-3.5 text-blue-600" />
+          <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 flex items-center justify-center shrink-0">
+            <Scissors className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
           </div>
-          <span className="font-semibold text-slate-900 text-sm">
+          <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
             {String(value)}
           </span>
         </div>
@@ -91,7 +90,7 @@ function buildColumns(
       render: (_item, value) => {
         const cat = categories.find((c) => c.id === String(value));
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-600">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-400">
             {cat?.icon} {cat?.name ?? String(value)}
           </span>
         );
@@ -102,8 +101,8 @@ function buildColumns(
       label: "Duración",
       align: "center",
       render: (_item, value) => (
-        <div className="flex items-center justify-center gap-1.5 text-sm font-medium text-slate-600">
-          <Clock className="w-3.5 h-3.5 text-slate-400" />
+        <div className="flex items-center justify-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">
+          <Clock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
           {String(value)}
         </div>
       ),
@@ -113,7 +112,7 @@ function buildColumns(
       label: "Precio",
       align: "right",
       render: (_item, value) => (
-        <span className="font-extrabold text-slate-900 text-sm">
+        <span className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
           {String(value)}
         </span>
       ),
@@ -137,7 +136,7 @@ function buildColumns(
               e.stopPropagation();
               onEdit(item);
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 text-slate-400 transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 text-slate-400 dark:text-slate-500 transition-all"
             title="Editar"
           >
             <Edit2 className="w-3.5 h-3.5" />
@@ -147,7 +146,7 @@ function buildColumns(
               e.stopPropagation();
               onDelete(item.id);
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:border-red-300 hover:bg-red-50 hover:text-red-500 text-slate-400 transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 text-slate-400 dark:text-slate-500 transition-all"
             title="Eliminar"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -160,6 +159,8 @@ function buildColumns(
 
 // ── Component ─────────────────────────────────────────────
 export default function ServicesPage() {
+  const { companyId, activeBranchId, activeBranch } = useBranch();
+  
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -171,12 +172,13 @@ export default function ServicesPage() {
 
   // ── Fetch ──
   const fetchServices = async () => {
+    if (!companyId || !activeBranchId) return;
     setLoading(true);
-    const res = await getServices(DEFAULT_COMPANY_ID);
-    if (res.success && res.data) {
+    try {
+      const res = await getServices(companyId, activeBranchId);
       setServices(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (res.data as any[]).map((s) => ({
+        (res as any[]).map((s) => ({
           id: s.id,
           name: s.name,
           category: s.category,
@@ -186,7 +188,7 @@ export default function ServicesPage() {
           raw: s,
         })),
       );
-    } else {
+    } catch {
       toast.error("Error al cargar los servicios");
     }
     setLoading(false);
@@ -194,7 +196,7 @@ export default function ServicesPage() {
 
   useEffect(() => {
     fetchServices();
-  }, []);
+  }, [companyId, activeBranchId]);
 
   // ── Modal helpers ──
   const openCreate = () => {
@@ -226,7 +228,8 @@ export default function ServicesPage() {
       ...formData,
       price: parseFloat(formData.price),
       duration: parseInt(formData.duration),
-      companyId: DEFAULT_COMPANY_ID,
+      companyId: companyId,
+      branchId: activeBranchId || "",
     };
 
     const res = editingService
@@ -275,19 +278,19 @@ export default function ServicesPage() {
   const inactiveCount = services.filter((s) => s.status === "inactivo").length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Sidebar />
       <Topbar />
 
-      <main className="md:ml-64 pt-20 pb-12 px-5 md:px-7">
+      <main className="transition-all duration-200 pt-20 pb-12 px-5 md:px-7" style={{ marginLeft: 'var(--sidebar-width)' }}>
         <PageHeader
-          title="Servicios"
+          title={`Servicios - ${activeBranch?.name || "..."}`}
           description="Gestiona el catálogo de servicios de tu negocio"
           breadcrumb="Servicios"
           actions={
             <button
               onClick={openCreate}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-200 transition-all hover:-translate-y-px"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-200 dark:shadow-blue-900/20 transition-all hover:-translate-y-px"
             >
               <Plus className="w-3.5 h-3.5" /> Nuevo servicio
             </button>
@@ -330,18 +333,18 @@ export default function ServicesPage() {
             return (
               <div
                 key={c.label}
-                className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center gap-4"
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex items-center gap-4"
               >
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border border-slate-100 ${c.bg}`}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-slate-100 dark:border-slate-800 ${c.bg} dark:bg-slate-950`}
                 >
                   <Icon className={`w-4.5 h-4.5 ${c.iconClass}`} />
                 </div>
                 <div>
-                  <p className="text-2xl font-extrabold text-slate-900 tracking-tight leading-none">
+                  <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight leading-none">
                     {c.value}
                   </p>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">
+                  <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-0.5">
                     {c.label}
                   </p>
                 </div>
@@ -351,14 +354,14 @@ export default function ServicesPage() {
         </div>
 
         {/* ── Table card ── */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6">
           {/* Toolbar */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
             <div>
-              <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">
                 Todos los servicios
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                 {filtered.length} servicios encontrados
               </p>
             </div>
@@ -369,7 +372,7 @@ export default function ServicesPage() {
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="h-9 pl-3 pr-8 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-600 outline-none appearance-none cursor-pointer hover:border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                  className="h-9 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-600 dark:text-slate-300 outline-none appearance-none cursor-pointer hover:border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all"
                 >
                   <option value="">Todas las categorías</option>
                   {categories.map((c) => (
@@ -419,7 +422,7 @@ export default function ServicesPage() {
           {/* Name + Category */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 Nombre del servicio <span className="text-red-500">*</span>
               </label>
               <input
@@ -430,11 +433,11 @@ export default function ServicesPage() {
                   setFormData({ ...formData, name: e.target.value })
                 }
                 placeholder="ej: Corte + Barba"
-                className="h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all"
+                className="h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 Categoría <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -444,7 +447,7 @@ export default function ServicesPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, category: e.target.value })
                   }
-                  className="w-full h-10 pl-3 pr-8 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium outline-none appearance-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all cursor-pointer"
+                  className="w-full h-10 pl-3 pr-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium outline-none appearance-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all cursor-pointer"
                 >
                   <option value="" disabled>
                     Seleccionar categoría
@@ -462,7 +465,7 @@ export default function ServicesPage() {
 
           {/* Description */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
               Descripción
             </label>
             <textarea
@@ -472,14 +475,14 @@ export default function ServicesPage() {
               }
               placeholder="Describe brevemente el servicio..."
               rows={3}
-              className="px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all resize-none"
+              className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all resize-none"
             />
           </div>
 
           {/* Duration + Price */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 Duración (min) <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -493,12 +496,12 @@ export default function ServicesPage() {
                     setFormData({ ...formData, duration: e.target.value })
                   }
                   placeholder="30"
-                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all"
+                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all"
                 />
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 Precio (COP) <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -513,14 +516,14 @@ export default function ServicesPage() {
                     setFormData({ ...formData, price: e.target.value })
                   }
                   placeholder="50000"
-                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all"
+                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all"
                 />
               </div>
             </div>
           </div>
 
           {/* Divider */}
-          <div className="border-t border-slate-100 pt-2" />
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-2" />
 
           {/* Actions */}
           <div className="flex gap-3">
@@ -544,7 +547,7 @@ export default function ServicesPage() {
               type="button"
               disabled={saving}
               onClick={() => setIsModalOpen(false)}
-              className="flex-1 h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-bold text-slate-600 transition-all"
+              className="flex-1 h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:bg-slate-50 dark:hover:bg-slate-900 text-sm font-bold text-slate-600 dark:text-slate-400 transition-all"
             >
               Cancelar
             </button>
@@ -561,9 +564,9 @@ export default function ServicesPage() {
         size="sm"
       >
         <div className="flex flex-col gap-5">
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-100">
-            <Trash2 className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-700 font-medium leading-relaxed">
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30">
+            <Trash2 className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-red-700 dark:text-red-400 font-medium leading-relaxed">
               ¿Estás seguro de que quieres eliminar este servicio? Los datos no
               se podrán recuperar.
             </p>
@@ -583,7 +586,7 @@ export default function ServicesPage() {
             </button>
             <button
               onClick={() => setDeleteConfirmId(null)}
-              className="flex-1 h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-bold text-slate-600 transition-all"
+              className="flex-1 h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:bg-slate-50 dark:hover:bg-slate-900 text-sm font-bold text-slate-600 dark:text-slate-400 transition-all"
             >
               Cancelar
             </button>

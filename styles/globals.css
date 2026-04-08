@@ -52,7 +52,50 @@
 }
 
 @layer base {
+  :root {
+    --sidebar-width: 280px;
+    --sb-navy: #0c1a3a;
+    --sb-blue: #1b5fff;
+    --sb-blue-lt: #ebf2ff;
+    --sb-blue-md: #c7daff;
+    --sb-border: #e4eaf4;
+    --sb-off: #f7f9fc;
+    --sb-text-2: #4a5568;
+    --sb-text-3: #8896ab;
+    --sb-bg: #ffffff;
+  }
+
+  .dark {
+    --color-background: #090e1a;
+    --color-foreground: #f8fafc;
+    --color-card: #0f172a;
+    --color-card-foreground: #f8fafc;
+    --color-popover: #0f172a;
+    --color-popover-foreground: #f8fafc;
+    --color-primary: #3b82f6;
+    --color-border: #1e293b;
+    --color-input: #1e293b;
+    --color-muted: #1e293b;
+    --color-muted-foreground: #94a3b8;
+    
+    /* Sidebar Dark Vars */
+    --sb-navy: #f8fafc;
+    --sb-blue: #3b82f6;
+    --sb-blue-lt: #1e293b;
+    --sb-blue-md: #334155;
+    --sb-border: #1e293b;
+    --sb-off: #1e293b;
+    --sb-text-2: #cbd5e1;
+    --sb-text-3: #94a3b8;
+    --sb-bg: #0c111d;
+  }
+
   body {
-    @apply bg-background text-foreground transition-colors duration-200;
+    @apply bg-background text-foreground transition-colors duration-300;
+  }
+  
+  header, main, aside {
+    transition: all 0.3s cubic-bezier(.4,0,.2,1);
   }
 }
+

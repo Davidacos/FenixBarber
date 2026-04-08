@@ -6,13 +6,9 @@ import { revalidatePath } from 'next/cache'
 // Helper for deep cloning and serializing (to match previous behavior)
 const serialize = (data: any) => JSON.parse(JSON.stringify(data))
 
-export async function getServices(companySlug: string) {
+export async function getServices(companyId: string, branchId: string) {
   try {
-    const company = mockCompanies.find(c => c.slug === companySlug)
-    
-    if (!company) return { success: false, error: 'Company not found' }
-
-    const services = mockServices.filter(s => s.companyId === company.id)
+    const services = mockServices.filter(s => s.companyId === companyId && s.branchId === branchId)
     return { success: true, data: serialize(services) }
   } catch (error) {
     console.error('Error fetching services:', error)
@@ -26,17 +22,13 @@ export async function createService(data: {
   category: string
   price: number
   duration: number
-  companyId: string // This is actually the slug in my UI implementation for now
+  companyId: string
+  branchId: string
 }) {
   try {
-    const company = mockCompanies.find(c => c.slug === data.companyId)
-    
-    if (!company) return { success: false, error: 'Company not found' }
-
     const newService = {
       id: Math.random().toString(36).substr(2, 9),
       ...data,
-      companyId: company.id,
       active: true
     }
     

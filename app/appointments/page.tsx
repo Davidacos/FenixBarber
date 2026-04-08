@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useBranch } from "@/contexts/BranchContext";
+import { getAppointments, getClients, getEmployees, getServices, createAppointment, updateAppointment, deleteAppointment } from "@/lib/api";
 import {
   Plus,
   Clock,
@@ -23,12 +25,6 @@ import PageHeader from "@/components/page-header";
 import DataTable, { type Column } from "@/components/data-table";
 import StatusBadge from "@/components/status-badge";
 import Modal from "@/components/modal";
-import {
-  mockAppointments,
-  mockServices,
-  mockEmployees,
-  mockClients,
-} from "@/lib/mock-data";
 
 // ── Types ──────────────────────────────────────────────────
 type AppStatus =
@@ -132,7 +128,7 @@ function buildColumns(
       label: "Cliente",
       render: (_item, value) => (
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 text-xs font-extrabold flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 text-xs font-extrabold shrink-0">
             {String(value)
               .split(" ")
               .map((n: string) => n[0])
@@ -140,7 +136,7 @@ function buildColumns(
               .slice(0, 2)
               .toUpperCase()}
           </div>
-          <span className="font-semibold text-slate-900 text-sm">
+          <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
             {String(value)}
           </span>
         </div>
@@ -152,8 +148,8 @@ function buildColumns(
       key: "date",
       label: "Fecha y hora",
       render: (_item, value) => (
-        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
-          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+          <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
           {String(value)}
         </div>
       ),
@@ -163,8 +159,8 @@ function buildColumns(
       label: "Duración",
       align: "center",
       render: (_item, value) => (
-        <div className="flex items-center justify-center gap-1.5 text-sm font-medium text-slate-600">
-          <Clock className="w-3.5 h-3.5 text-slate-400" />
+        <div className="flex items-center justify-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">
+          <Clock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
           {String(value)}
         </div>
       ),
@@ -174,7 +170,7 @@ function buildColumns(
       label: "Monto",
       align: "right",
       render: (_item, value) => (
-        <span className="font-extrabold text-slate-900 text-sm">
+        <span className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
           {String(value)}
         </span>
       ),
@@ -198,7 +194,7 @@ function buildColumns(
               e.stopPropagation();
               onEdit(item);
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 text-slate-400 transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 text-slate-400 dark:text-slate-500 transition-all"
           >
             <Edit2 className="w-3.5 h-3.5" />
           </button>
@@ -207,7 +203,7 @@ function buildColumns(
               e.stopPropagation();
               onDelete(item.id);
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:border-red-300 hover:bg-red-50 hover:text-red-500 text-slate-400 transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 text-slate-400 dark:text-slate-500 transition-all"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -235,7 +231,7 @@ function SelectField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
@@ -244,7 +240,7 @@ function SelectField({
           required={required}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full h-10 pl-3 pr-8 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium outline-none appearance-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all cursor-pointer"
+          className="w-full h-10 pl-3 pr-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium outline-none appearance-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all cursor-pointer"
         >
           <option value="" disabled>
             {placeholder ?? `Seleccionar ${label.toLowerCase()}`}
@@ -263,26 +259,54 @@ function SelectField({
 
 // ── Component ──────────────────────────────────────────────
 export default function AppointmentsPage() {
+  const { companyId, activeBranchId, activeBranch } = useBranch();
+  
   const [viewMode, setViewMode] = useState<"tabla" | "calendario">("tabla");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingApp, setEditingApp] = useState<AppRow | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const today = new Date();
 
+  // ── State for data ──
+  const [rawAppointments, setRawAppointments] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (companyId && activeBranchId) {
+      setIsLoading(true);
+      Promise.all([
+        getAppointments(companyId, activeBranchId),
+        getServices(companyId, activeBranchId),
+        getEmployees(companyId, activeBranchId),
+        getClients(companyId, activeBranchId)
+      ]).then(([apps, svcs, emps, clis]) => {
+        setRawAppointments(apps);
+        setServices(svcs);
+        setEmployees(emps);
+        setClients(clis);
+        setIsLoading(false);
+      });
+    }
+  }, [companyId, activeBranchId]);
+
   // ── Data ──
   const tableData: AppRow[] = useMemo(
     () =>
-      mockAppointments.map((apt) => {
-        const svc = mockServices.find((s) => s.id === apt.serviceId);
-        const emp = mockEmployees.find((e) => e.id === apt.employeeId);
+      rawAppointments.map((apt) => {
+        const svc = services.find((s) => s.id === apt.serviceId);
+        const emp = employees.find((e) => e.id === apt.employeeId);
+        const cli = clients.find((c) => c.id === apt.clientId);
         return {
           id: apt.id,
-          client: `Cliente ${apt.clientId}`,
+          client: cli?.name || `Cliente ${apt.clientId}`,
           service: svc?.name ?? "N/A",
           employee: emp?.name ?? "N/A",
           date: apt.date.toLocaleString("es-ES", {
@@ -296,7 +320,7 @@ export default function AppointmentsPage() {
           amount: `$${(svc?.price ?? 0).toLocaleString("es-CO")}`,
         };
       }),
-    [],
+    [rawAppointments, services, employees, clients],
   );
 
   const filtered = filterStatus
@@ -328,7 +352,7 @@ export default function AppointmentsPage() {
   // Map appointments to calendar day
   const appsByDay = useMemo(() => {
     const map: Record<number, number> = {};
-    mockAppointments.forEach((apt) => {
+    rawAppointments.forEach((apt) => {
       if (
         apt.date.getFullYear() === calYear &&
         apt.date.getMonth() === calMonth
@@ -338,7 +362,7 @@ export default function AppointmentsPage() {
       }
     });
     return map;
-  }, [calYear, calMonth]);
+  }, [calYear, calMonth, rawAppointments]);
 
   // ── Handlers ──
   const openCreate = () => {
@@ -354,14 +378,36 @@ export default function AppointmentsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 700));
+    
+    // Add company and branch contexts to data
+    const payload = {
+      ...formData,
+      companyId: companyId,
+      branchId: activeBranchId,
+      date: new Date(formData.date + "T" + formData.time),
+    };
+
+    if (editingApp) {
+      await updateAppointment(editingApp.id, payload);
+    } else {
+      await createAppointment(payload);
+    }
+    
+    const refreshed = await getAppointments(companyId!, activeBranchId!);
+    setRawAppointments(refreshed);
+
     setIsModalOpen(false);
     setSaving(false);
   };
 
   const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 500));
+    await deleteAppointment(deleteConfirmId);
+    
+    const refreshed = await getAppointments(companyId!, activeBranchId!);
+    setRawAppointments(refreshed);
+    
     setDeleteConfirmId(null);
     setSaving(false);
   };
@@ -372,19 +418,19 @@ export default function AppointmentsPage() {
     setFormData((f) => ({ ...f, [k]: v }));
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <Sidebar />
       <Topbar />
 
-      <main className="md:ml-64 pt-20 pb-12 px-5 md:px-7">
+      <main className="transition-all duration-200 pt-20 pb-12 px-5 md:px-7" style={{ marginLeft: 'var(--sidebar-width)' }}>
         <PageHeader
-          title="Citas"
+          title={`Citas - ${activeBranch?.name || "..."}`}
           description="Administra el calendario de citas de tu negocio"
           breadcrumb="Citas"
           actions={
             <button
               onClick={openCreate}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-200 transition-all hover:-translate-y-px"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shadow-blue-200 dark:shadow-blue-900/20 transition-all hover:-translate-y-px"
             >
               <Plus className="w-3.5 h-3.5" /> Nueva cita
             </button>
@@ -427,7 +473,7 @@ export default function AppointmentsPage() {
           ].map((s) => (
             <div
               key={s.label}
-              className={`${s.bg} border border-slate-200 rounded-2xl p-4 text-center cursor-pointer hover:-translate-y-0.5 hover:shadow-sm transition-all`}
+              className={`${s.bg} dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-center cursor-pointer hover:-translate-y-0.5 hover:shadow-sm transition-all`}
               onClick={() =>
                 setFilterStatus(
                   s.label === "Total"
@@ -440,11 +486,11 @@ export default function AppointmentsPage() {
               }
             >
               <p
-                className={`text-2xl font-extrabold tracking-tight leading-none ${s.color}`}
+                className={`text-2xl font-extrabold tracking-tight leading-none ${s.color} dark:text-white`}
               >
                 {s.value}
               </p>
-              <p className="text-xs text-slate-400 font-medium mt-1">
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-1">
                 {s.label}
               </p>
             </div>
@@ -452,18 +498,18 @@ export default function AppointmentsPage() {
         </div>
 
         {/* ── View tabs ── */}
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
           {/* Tab bar */}
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
-            <div className="flex items-center gap-1 border border-slate-200 rounded-xl p-1 bg-slate-50">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-1 border border-slate-200 dark:border-slate-800 rounded-xl p-1 bg-slate-50 dark:bg-slate-950">
               {(["tabla", "calendario"] as const).map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
                   className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all capitalize ${
                     viewMode === mode
-                      ? "bg-white text-slate-900 shadow-sm border border-slate-200"
-                      : "text-slate-400 hover:text-slate-600"
+                      ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200 dark:border-slate-700"
+                      : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                   }`}
                 >
                   {mode === "tabla" ? (
@@ -485,7 +531,7 @@ export default function AppointmentsPage() {
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="h-9 pl-3 pr-8 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-600 outline-none appearance-none cursor-pointer hover:border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                  className="h-9 pl-3 pr-8 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-600 dark:text-slate-300 outline-none appearance-none cursor-pointer hover:border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all whitespace-nowrap"
                 >
                   <option value="">Todos los estados</option>
                   {statusOptions.map((s) => (
@@ -498,27 +544,33 @@ export default function AppointmentsPage() {
               </div>
             )}
           </div>
+          
+          {isLoading ? (
+             <div className="flex justify-center items-center h-48 py-20">
+               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+             </div>
+          ) : (
+            <>
+              {/* ── Table view ── */}
+              {viewMode === "tabla" && (
+                <div className="p-5">
+                  <DataTable<AppRow>
+                    columns={columns}
+                    data={filtered}
+                    searchFields={["client", "service", "employee"]}
+                    searchPlaceholder="Buscar cliente, servicio o empleado..."
+                    pageSize={8}
+                    emptyMessage="No se encontraron citas"
+                  />
+                </div>
+              )}
 
-          {/* ── Table view ── */}
-          {viewMode === "tabla" && (
-            <div className="p-5">
-              <DataTable<AppRow>
-                columns={columns}
-                data={filtered}
-                searchFields={["client", "service", "employee"]}
-                searchPlaceholder="Buscar cliente, servicio o empleado..."
-                pageSize={8}
-                emptyMessage="No se encontraron citas"
-              />
-            </div>
-          )}
-
-          {/* ── Calendar view ── */}
-          {viewMode === "calendario" && (
-            <div className="p-5">
-              {/* Month nav */}
+              {/* ── Calendar view ── */}
+              {viewMode === "calendario" && (
+                <div className="p-5">
+                  {/* Month nav */}
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+                <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
                   {MONTHS[calMonth]} {calYear}
                 </h2>
                 <div className="flex items-center gap-1">
@@ -529,7 +581,7 @@ export default function AppointmentsPage() {
                         setCalYear((y) => y - 1);
                       } else setCalMonth((m) => m - 1);
                     }}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50 text-slate-500 hover:text-blue-600 transition-all"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
@@ -538,7 +590,7 @@ export default function AppointmentsPage() {
                       setCalYear(today.getFullYear());
                       setCalMonth(today.getMonth());
                     }}
-                    className="px-3 h-8 rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50 text-xs font-bold text-slate-500 hover:text-blue-600 transition-all"
+                    className="px-3 h-8 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
                   >
                     Hoy
                   </button>
@@ -549,7 +601,7 @@ export default function AppointmentsPage() {
                         setCalYear((y) => y + 1);
                       } else setCalMonth((m) => m + 1);
                     }}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50 text-slate-500 hover:text-blue-600 transition-all"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -561,7 +613,7 @@ export default function AppointmentsPage() {
                 {DAYS.map((d) => (
                   <div
                     key={d}
-                    className="py-2 text-center text-xs font-bold uppercase tracking-wider text-slate-400"
+                    className="py-2 text-center text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500"
                   >
                     {d}
                   </div>
@@ -585,14 +637,14 @@ export default function AppointmentsPage() {
                         day === null
                           ? "border-transparent"
                           : isToday
-                            ? "border-blue-400 bg-blue-50"
-                            : "border-slate-100 bg-white hover:border-blue-200 hover:bg-slate-50"
+                            ? "border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                            : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                       }`}
                     >
                       {day !== null && (
                         <>
                           <p
-                            className={`text-xs font-bold leading-none ${isToday ? "text-blue-600" : "text-slate-700"}`}
+                            className={`text-xs font-bold leading-none ${isToday ? "text-blue-600 dark:text-blue-400" : "text-slate-700 dark:text-slate-300"}`}
                           >
                             {day}
                           </p>
@@ -601,8 +653,8 @@ export default function AppointmentsPage() {
                               <div
                                 className={`px-1.5 py-0.5 rounded-md text-xs font-bold text-center ${
                                   isToday
-                                    ? "bg-blue-600 text-white"
-                                    : "bg-blue-100 text-blue-700"
+                                    ? "bg-blue-600 dark:bg-blue-500 text-white"
+                                    : "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"
                                 }`}
                               >
                                 {appCount} cita{appCount > 1 ? "s" : ""}
@@ -617,17 +669,19 @@ export default function AppointmentsPage() {
               </div>
 
               {/* Legend */}
-              <div className="flex items-center gap-5 mt-4 pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-5 mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
-                  <div className="w-3 h-3 rounded-sm bg-blue-50 border border-blue-400" />
+                  <div className="w-3 h-3 rounded-sm bg-blue-50 dark:bg-blue-900/20 border border-blue-400" />
                   Hoy
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
-                  <div className="w-3 h-3 rounded-sm bg-blue-100" />
+                  <div className="w-3 h-3 rounded-sm bg-blue-100 dark:bg-blue-900/40" />
                   Con citas
                 </div>
               </div>
             </div>
+          )}
+          </>
           )}
         </div>
       </main>
@@ -651,14 +705,14 @@ export default function AppointmentsPage() {
               value={formData.clientId}
               onChange={set("clientId")}
               required
-              options={mockClients.map((c) => ({ id: c.id, name: c.name }))}
+              options={clients.map((c) => ({ id: c.id, name: c.name }))}
             />
             <SelectField
               label="Servicio"
               value={formData.serviceId}
               onChange={set("serviceId")}
               required
-              options={mockServices.map((s) => ({
+              options={services.map((s) => ({
                 id: s.id,
                 name: `${s.name} ($${s.price})`,
               }))}
@@ -671,7 +725,7 @@ export default function AppointmentsPage() {
               value={formData.employeeId}
               onChange={set("employeeId")}
               required
-              options={mockEmployees.map((e) => ({ id: e.id, name: e.name }))}
+              options={employees.map((e) => ({ id: e.id, name: e.name }))}
             />
             <SelectField
               label="Estado"
@@ -684,7 +738,7 @@ export default function AppointmentsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 Fecha <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -694,12 +748,12 @@ export default function AppointmentsPage() {
                   type="date"
                   value={formData.date}
                   onChange={(e) => set("date")(e.target.value)}
-                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all"
+                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all"
                 />
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 Hora <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -709,14 +763,14 @@ export default function AppointmentsPage() {
                   type="time"
                   value={formData.time}
                   onChange={(e) => set("time")(e.target.value)}
-                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all"
+                  className="w-full h-10 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all"
                 />
               </div>
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
               Observaciones
             </label>
             <textarea
@@ -724,11 +778,11 @@ export default function AppointmentsPage() {
               onChange={(e) => set("notes")(e.target.value)}
               placeholder="Notas adicionales sobre la cita..."
               rows={3}
-              className="px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 font-medium placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all resize-none"
+              className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-sm text-slate-900 dark:text-slate-100 font-medium placeholder:text-slate-400 dark:placeholder:text-slate-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:bg-white dark:focus:bg-slate-900 transition-all resize-none"
             />
           </div>
 
-          <div className="border-t border-slate-100 pt-2" />
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-2" />
 
           <div className="flex gap-3">
             <button
@@ -750,7 +804,7 @@ export default function AppointmentsPage() {
               type="button"
               disabled={saving}
               onClick={() => setIsModalOpen(false)}
-              className="flex-1 h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-bold text-slate-600 transition-all"
+              className="flex-1 h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:bg-slate-50 dark:hover:bg-slate-900 text-sm font-bold text-slate-600 dark:text-slate-400 transition-all"
             >
               Cancelar
             </button>
@@ -768,7 +822,7 @@ export default function AppointmentsPage() {
       >
         <div className="flex flex-col gap-5">
           <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-100">
-            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
             <p className="text-sm text-red-700 font-medium leading-relaxed">
               ¿Estás seguro de que quieres eliminar esta cita? El cliente no
               recibirá notificación automática.

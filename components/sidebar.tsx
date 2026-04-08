@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useBranch } from "@/contexts/BranchContext";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -18,8 +19,15 @@ import {
   Bell,
   Building2,
   ChevronDown,
+  ShoppingBag,
+  UserCircle2,
+  Store,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { clearDemoData } from "@/lib/api";
 
 const navGroups = [
   {
@@ -29,6 +37,14 @@ const navGroups = [
       { href: "/appointments", label: "Citas", icon: Calendar },
       { href: "/services", label: "Servicios", icon: Scissors },
       { href: "/employees", label: "Empleados", icon: Users },
+    ],
+  },
+  {
+    label: "Operativo",
+    items: [
+      { href: "/caja", label: "Caja", icon: ShoppingBag },
+      { href: "/clients", label: "Clientes", icon: UserCircle2 },
+      { href: "/shop", label: "Tienda Admin", icon: Store },
     ],
   },
   {
@@ -46,7 +62,39 @@ const navGroups = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [branchMenuOpen, setBranchMenuOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const { branches, activeBranch, setActiveBranchId, isLoading } = useBranch();
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('fenix_sidebar_collapsed');
+      if (stored === 'true') {
+        setCollapsed(true);
+        document.documentElement.style.setProperty('--sidebar-width', '64px');
+      } else {
+        document.documentElement.style.setProperty('--sidebar-width', '280px');
+      }
+    } catch {}
+  }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try { 
+        localStorage.setItem('fenix_sidebar_collapsed', String(next));
+        document.documentElement.style.setProperty('--sidebar-width', next ? '64px' : '280px');
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleLogout = async () => {
+    await clearDemoData();
+    router.push("/");
+  };
 
   const SidebarContent = () => (
     <div
@@ -54,7 +102,7 @@ export default function Sidebar() {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        background: "white",
+        background: "var(--sb-bg)",
       }}
     >
       {/* ── Logo ── */}
@@ -71,24 +119,32 @@ export default function Sidebar() {
       >
         <Link
           href="/dashboard"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            textDecoration: "none",
+          className={cn(
+            "flex items-center gap-3 overflow-hidden transition-all duration-300",
+            collapsed && "justify-center"
+          )}
+          style={{ 
+            width: collapsed ? '32px' : 'auto',
+            opacity: 1
           }}
         >
-          <img
-            src="/logo-fenixbarberpro.png"
-            alt="FenixBarber Pro"
-            style={{
-              height: 70,
-              width: "auto",
-              objectFit: "contain",
-              display: "block",
-            }}
-          />
+          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
+            <Flame size={18} color="white" fill="white" />
+          </div>
+          {!collapsed && (
+            <span className="font-black text-slate-900 dark:text-white tracking-tighter text-xl whitespace-nowrap">
+              FENIX<span className="text-blue-600 font-extrabold text-lg">BARBER</span>
+            </span>
+          )}
         </Link>
+
+        <button
+          onClick={toggleCollapsed}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all"
+          title={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+        >
+          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        </button>
 
         {/* Mobile close */}
         <button
@@ -107,9 +163,19 @@ export default function Sidebar() {
       </div>
 
       {/* ── Business selector ── */}
-      <div style={{ padding: "12px 12px 0" }}>
+      <div style={{ padding: "12px 12px 0", position: "relative" }}>
+        {/* Click outside overlay */}
+        {branchMenuOpen && (
+          <div 
+            onClick={() => setBranchMenuOpen(false)} 
+            style={{ position: "fixed", inset: 0, zIndex: 10 }}
+          />
+        )}
         <button
+          onClick={() => setBranchMenuOpen(!branchMenuOpen)}
           style={{
+            position: "relative",
+            zIndex: 11,
             width: "100%",
             display: "flex",
             alignItems: "center",
@@ -134,68 +200,111 @@ export default function Sidebar() {
               "var(--sb-off)";
           }}
         >
+            <div
+              className={cn(
+                "w-8 h-8 rounded-lg bg-linear-to-br from-blue-600 to-blue-500 flex items-center justify-center transition-all",
+                collapsed ? "mx-auto" : "shrink-0"
+              )}
+            >
+              <Scissors size={14} color="white" />
+            </div>
+          {!collapsed && (
+            <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
+              <div
+                style={{
+                  fontFamily: "Sora, sans-serif",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "var(--sb-navy)",
+                  letterSpacing: "-.01em",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {isLoading ? "Cargando..." : activeBranch?.name || "Seleccionar sede"}
+              </div>
+              <div
+                style={{ fontSize: 11, color: "var(--sb-text-3)", marginTop: 1 }}
+              >
+                Plan Professional
+              </div>
+            </div>
+          )}
+          {!collapsed && (
+            <ChevronDown
+              size={14}
+              color="var(--sb-text-3)"
+              style={{ flexShrink: 0 }}
+            />
+          )}
+        </button>
+
+        {branchMenuOpen && (
           <div
             style={{
-              width: 28,
-              height: 28,
-              borderRadius: 7,
-              background: "linear-gradient(135deg, #1B5FFF, #4F83FF)",
+              position: "absolute",
+              top: "100%",
+              left: 12,
+              right: 12,
+              marginTop: 4,
+              background: "white",
+              border: "1px solid var(--sb-border)",
+              borderRadius: 10,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+              zIndex: 20,
+              padding: 4,
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
+              flexDirection: "column",
+              gap: 2,
             }}
           >
-            <Scissors size={13} color="white" />
+            <div style={{ padding: "4px 8px 8px", fontSize: 10, fontWeight: 700, color: "var(--sb-text-3)", textTransform: "uppercase" }}>Tus Sedes</div>
+            {branches.map(b => (
+              <button
+                key={b.id}
+                onClick={() => {
+                  setActiveBranchId(b.id);
+                  setBranchMenuOpen(false);
+                }}
+                className={cn(
+                  "text-left p-2 rounded-md font-medium text-xs transition-all",
+                  b.id === activeBranch?.id 
+                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" 
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                )}
+                style={{
+                  fontFamily: "Plus Jakarta Sans, sans-serif",
+                }}
+              >
+                {b.name}
+              </button>
+            ))}
           </div>
-          <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
-            <div
-              style={{
-                fontFamily: "Sora, sans-serif",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "var(--sb-navy)",
-                letterSpacing: "-.01em",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Barbería Principal
-            </div>
-            <div
-              style={{ fontSize: 11, color: "var(--sb-text-3)", marginTop: 1 }}
-            >
-              Plan Professional
-            </div>
-          </div>
-          <ChevronDown
-            size={14}
-            color="var(--sb-text-3)"
-            style={{ flexShrink: 0 }}
-          />
-        </button>
+        )}
       </div>
 
       {/* ── Navigation ── */}
       <nav style={{ flex: 1, overflowY: "auto", padding: "8px 12px 12px" }}>
         {navGroups.map((group) => (
           <div key={group.label} style={{ marginTop: 20 }}>
-            <span
-              style={{
-                display: "block",
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: ".12em",
-                textTransform: "uppercase",
-                color: "var(--sb-text-3)",
-                padding: "0 8px",
-                marginBottom: 4,
-                fontFamily: "Sora, sans-serif",
-              }}
-            >
-              {group.label}
-            </span>
+            {!collapsed && (
+              <span
+                style={{
+                  display: "block",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: ".12em",
+                  textTransform: "uppercase",
+                  color: "var(--sb-text-3)",
+                  padding: "0 8px",
+                  marginBottom: 4,
+                  fontFamily: "Sora, sans-serif",
+                }}
+              >
+                {group.label}
+              </span>
+            )}
 
             {group.items.map((item) => {
               const Icon = item.icon;
@@ -206,74 +315,33 @@ export default function Sidebar() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all duration-200 group relative mb-0.5",
+                    isActive 
+                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-semibold" 
+                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200"
+                  )}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "9px 10px",
-                    borderRadius: 9,
-                    marginBottom: 2,
-                    textDecoration: "none",
-                    transition: "background .15s, color .15s",
-                    background: isActive ? "var(--sb-blue-lt)" : "transparent",
-                    color: isActive ? "var(--sb-blue)" : "var(--sb-text-2)",
                     fontFamily: "Plus Jakarta Sans, sans-serif",
                     fontSize: 13,
-                    fontWeight: isActive ? 600 : 500,
-                    position: "relative",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      (e.currentTarget as HTMLAnchorElement).style.background =
-                        "var(--sb-off)";
-                      (e.currentTarget as HTMLAnchorElement).style.color =
-                        "var(--sb-navy)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      (e.currentTarget as HTMLAnchorElement).style.background =
-                        "transparent";
-                      (e.currentTarget as HTMLAnchorElement).style.color =
-                        "var(--sb-text-2)";
-                    }
                   }}
                 >
                   {/* Active indicator bar */}
                   {isActive && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: 0,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: 3,
-                        height: 18,
-                        background: "var(--sb-blue)",
-                        borderRadius: "0 3px 3px 0",
-                      }}
-                    />
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-blue-600 dark:bg-blue-500 rounded-r-full" />
                   )}
-                  <div
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      background: isActive
-                        ? "rgba(27,95,255,.12)"
-                        : "transparent",
-                      transition: "background .15s",
-                    }}
-                  >
+                  
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                    isActive ? "bg-blue-600/10 dark:bg-blue-500/10" : "group-hover:bg-slate-100 dark:group-hover:bg-slate-700/50"
+                  )}>
                     <Icon size={16} />
                   </div>
-                  <span style={{ flex: 1 }}>{item.label}</span>
-                  {isActive && (
-                    <ChevronRight size={13} style={{ opacity: 0.5 }} />
+                  
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                  
+                  {!collapsed && isActive && (
+                    <ChevronRight size={14} className="ml-auto opacity-40" />
                   )}
                 </Link>
               );
@@ -283,162 +351,142 @@ export default function Sidebar() {
       </nav>
 
       {/* ── Upgrade Banner ── */}
-      <div style={{ padding: "0 12px 12px" }}>
-        <div
-          style={{
-            background:
-              "linear-gradient(135deg, var(--sb-navy) 0%, #1a3a6b 100%)",
-            borderRadius: 12,
-            padding: "14px 14px",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          {/* Decorative glow */}
+      {!collapsed && (
+        <div style={{ padding: "0 12px 12px" }}>
           <div
             style={{
-              position: "absolute",
-              top: -20,
-              right: -20,
-              width: 80,
-              height: 80,
-              borderRadius: "50%",
-              background: "rgba(27,95,255,.4)",
-              pointerEvents: "none",
+              background:
+                "linear-gradient(135deg, var(--sb-navy) 0%, #1a3a6b 100%)",
+              borderRadius: 12,
+              padding: "14px 14px",
+              position: "relative",
+              overflow: "hidden",
             }}
-          />
-          <div style={{ position: "relative", zIndex: 1 }}>
+          >
+            {/* Decorative glow */}
             <div
               style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: "white",
-                fontFamily: "Sora, sans-serif",
-                marginBottom: 4,
+                position: "absolute",
+                top: -20,
+                right: -20,
+                width: 80,
+                height: 80,
+                borderRadius: "50%",
+                background: "rgba(27,95,255,.4)",
+                pointerEvents: "none",
               }}
-            >
-              Pasa a Enterprise
+            />
+            <div style={{ position: "relative", zIndex: 1 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "white",
+                  fontFamily: "Sora, sans-serif",
+                  marginBottom: 4,
+                }}
+              >
+                Pasa a Enterprise
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "rgba(255,255,255,.6)",
+                  marginBottom: 10,
+                  lineHeight: 1.5,
+                }}
+              >
+                Desbloquea sedes ilimitadas y marca blanca.
+              </div>
+              <button
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  background: "var(--sb-blue)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 7,
+                  padding: "7px 12px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "Sora, sans-serif",
+                  transition: "opacity .15s",
+                }}
+              >
+                Ver planes <ChevronRight size={12} />
+              </button>
             </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "rgba(255,255,255,.6)",
-                marginBottom: 10,
-                lineHeight: 1.5,
-              }}
-            >
-              Desbloquea sedes ilimitadas y marca blanca.
-            </div>
-            <button
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                background: "var(--sb-blue)",
-                color: "white",
-                border: "none",
-                borderRadius: 7,
-                padding: "7px 12px",
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "Sora, sans-serif",
-                transition: "opacity .15s",
-              }}
-              onMouseEnter={(e) =>
-                ((e.currentTarget as HTMLButtonElement).style.opacity = ".85")
-              }
-              onMouseLeave={(e) =>
-                ((e.currentTarget as HTMLButtonElement).style.opacity = "1")
-              }
-            >
-              Ver planes <ChevronRight size={12} />
-            </button>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Space filler when collapsed */}
+      {collapsed && (
+        <div className="flex-1" />
+      )}
 
       {/* ── User footer ── */}
-      <div style={{ borderTop: "1px solid var(--sb-border)", padding: "12px" }}>
+      <div 
+        className={cn(
+          "border-t border-slate-100 dark:border-slate-800",
+          collapsed ? "p-3" : "p-4"
+        )}
+      >
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "8px 10px",
-            borderRadius: 10,
-          }}
+          className={cn(
+            "flex items-center gap-3 rounded-xl transition-all",
+            !collapsed && "p-1.5 hover:bg-slate-50"
+          )}
         >
           {/* Avatar */}
           <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              background: "var(--sb-blue)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              fontFamily: "Sora, sans-serif",
-              fontSize: 12,
-              fontWeight: 700,
-              color: "white",
-            }}
+            className={cn(
+              "w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0 transition-transform",
+              collapsed && "mx-auto ring-2 ring-blue-50 ring-offset-1"
+            )}
+            style={{ fontFamily: 'Sora' }}
           >
             CR
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: "var(--sb-navy)",
-                fontFamily: "Sora, sans-serif",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Carlos Rodríguez
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "var(--sb-text-3)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              admin@barberia.com
-            </div>
-          </div>
-          <button
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--sb-text-3)",
-              padding: 4,
-              borderRadius: 6,
-              transition: "color .15s, background .15s",
-            }}
-            title="Cerrar sesión"
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = "#EF4444";
-              (e.currentTarget as HTMLButtonElement).style.background =
-                "#FEF2F2";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color =
-                "var(--sb-text-3)";
-              (e.currentTarget as HTMLButtonElement).style.background =
-                "transparent";
-            }}
-          >
-            <LogOut size={15} />
-          </button>
+          {!collapsed && (
+            <>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "var(--sb-navy)",
+                    fontFamily: "Sora, sans-serif",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Carlos Rodríguez
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--sb-text-3)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  admin@barberia.com
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                title="Cerrar sesión"
+              >
+                <LogOut size={16} />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -511,13 +559,16 @@ export default function Sidebar() {
           top: 0,
           zIndex: 30,
           height: "100vh",
-          width: 248,
+          width: collapsed ? 64 : 280,
           borderRight: "1px solid var(--sb-border)",
-          background: "white",
+          background: "var(--sb-bg)",
           display: "flex",
           flexDirection: "column",
+          transition: "width 0.3s cubic-bezier(.4,0,.2,1)",
+          overflow: "hidden",
         }}
         className="sb-desktop"
+        data-collapsed={collapsed ? "true" : "false"}
       >
         <SidebarContent />
       </aside>
@@ -542,9 +593,9 @@ export default function Sidebar() {
               top: 0,
               zIndex: 50,
               height: "100vh",
-              width: 248,
+              width: 280,
               borderRight: "1px solid var(--sb-border)",
-              background: "white",
+              background: "var(--sb-bg)",
               boxShadow: "8px 0 32px rgba(12,26,58,.12)",
               display: "flex",
               flexDirection: "column",

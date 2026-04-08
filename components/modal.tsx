@@ -49,20 +49,20 @@ export default function Modal({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 z-40 bg-slate-900/50 dark:bg-slate-950/70 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       {/* Panel */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
         <div
-          className={`${sizeMap[size]} w-full bg-white rounded-2xl border border-slate-200 shadow-2xl shadow-slate-900/10 flex flex-col max-h-[90vh]`}
+          className={`${sizeMap[size]} w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-900/10 flex flex-col max-h-[90vh]`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-start justify-between px-6 py-5 border-b border-slate-100 flex-shrink-0">
+          <div className="flex items-start justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
             <div>
-              <h2 className="text-base font-extrabold text-slate-900 tracking-tight leading-tight">
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100 tracking-tight leading-tight">
                 {title}
               </h2>
               {description && (
@@ -73,7 +73,7 @@ export default function Modal({
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 hover:bg-red-50 hover:border-red-200 hover:text-red-500 text-slate-400 transition-all flex-shrink-0 ml-4"
+              className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-900/30 hover:text-red-500 text-slate-400 dark:text-slate-500 transition-all shrink-0 ml-4"
             >
               <X className="w-4 h-4" />
             </button>
